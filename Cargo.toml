@@ -1,0 +1,15 @@
+[workspace]
+resolver = "2"
+members = [ "src/config","src/courier", "src/module", "src/network", "src/server", "src/utils"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "GNU GPLv3"
+authors = ["Courier Team"]
+description = "An extendable server software"
+rust-version = "1.81"
+
+[workspace.dependencies]
+libc = "0.2.159"
+libloading = "0.8.5"
