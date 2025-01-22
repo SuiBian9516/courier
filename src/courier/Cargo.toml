@@ -10,8 +10,4 @@ rust-version.workspace = true
 # Main wrapper
 courier-main-wrapper = { git = "https://github.com/Atomovera/courier-main-wrapper.git" }
 
-# Local dependencies
-network = {path = "../network"}
-module = {path = "../module"}
-
 libc.workspace = true
