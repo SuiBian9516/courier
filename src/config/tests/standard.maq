@@ -1,0 +1,23 @@
+#include "./path/to/what/you/want/to/include";
+
+name "Marquage";
+
+description "A simple mark language mainly used as config files";
+
+version [1,0,0];
+
+authors {
+  "SuiBian9516" "m1311826090@outlook.com";
+};
+
+is_latest false;
+
+is_simple true;
+
+is_widely_used void;
+
+&variable "Only accept simple data structures";
+
+&year 2024;
+
+copyright_year *year;
