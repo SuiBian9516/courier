@@ -4,6 +4,8 @@ use std::collections::BTreeMap;
 pub enum Value {
   Void,
 
+  Command(String, String),
+
   String(String),
 
   Boolean(bool),
@@ -15,8 +17,6 @@ pub enum Value {
   Object(BTreeMap<String, Value>),
 
   Array(Vec<Value>),
-
-  Pound,
 
   OpenBrace,
   CloseBrace,
@@ -30,8 +30,8 @@ pub enum Value {
   Semicolon,
   Comma,
 
-  Reference,
-  Dereference,
+  Reference(String),
+  Dereference(String),
 
   Comment,
 

@@ -1,6 +1,6 @@
 use crate::Value;
 
-use super::{error::LexerError, position::Position, token::Token};
+use super::{error::DeserializerError, position::Position, token::Token};
 
 pub struct Lexer {
   pointer: usize,
@@ -14,10 +14,10 @@ impl Lexer {
     Self { pointer: 0, data, position: (1, 0) }
   }
 
-  pub fn get(&mut self) -> Result<Token, LexerError> {
+  pub fn get(&mut self) -> Result<Token, DeserializerError> {
     if let Some(data) = self.advance(true) {
       match data {
-        '#' => Ok(self.create_token(Value::Pound)),
+        '#' => self.process_command(),
         '"' => self.process_string_with_double_quote(),
         '\'' => self.process_string_with_single_quote(),
         ';' => Ok(self.create_token(Value::Semicolon)),
@@ -28,8 +28,8 @@ impl Lexer {
         '}' => Ok(self.create_token(Value::CloseBrace)),
         '(' => Ok(self.create_token(Value::OpenParen)),
         ')' => Ok(self.create_token(Value::CloseParen)),
-        '&' => Ok(self.create_token(Value::Reference)),
-        '*' => Ok(self.create_token(Value::Dereference)),
+        '&' => self.process_reference(),
+        '*' => self.process_dereference(),
         '-' => self.process_signed_number(),
         't' => self.process_specific_sets(0),
         'f' => self.process_specific_sets(1),
@@ -39,7 +39,7 @@ impl Lexer {
             self.process_comment();
             Ok(self.create_token(Value::Comment))
           } else {
-            Err(LexerError::UnexpectedValue('/', self.position))
+            self.process_raw_string()
           }
         },
         other => {
@@ -48,7 +48,7 @@ impl Lexer {
           } else if self.is_digit_from_chars(other) {
             self.process_number()
           } else {
-            Err(LexerError::UnexpectedValue(other, self.position))
+            Err(DeserializerError::UnexpectedValue(other, self.position))
           }
         },
       }
@@ -57,7 +57,97 @@ impl Lexer {
     }
   }
 
-  fn process_string_with_double_quote(&mut self) -> Result<Token, LexerError> {
+  fn process_command(&mut self) -> Result<Token, DeserializerError> {
+    let start_pos: usize = self.pointer;
+    let mut state: bool = false;
+    let mut command_name = String::from("");
+    while let Some(data) = self.advance(false) {
+      if self.is_ascii_from_chars(data) {
+        if state {
+          return Err(DeserializerError::UnexpectedValue(data, self.position));
+        }
+        continue;
+      } else if data == ' ' || data == '\t' {
+        if state {
+          continue;
+        }
+        let command = &self.data[start_pos..self.pointer - 1];
+        match command {
+          "include" => {
+            state = true;
+            command_name = "include".to_string();
+          },
+          "define" => {
+            todo!();
+          },
+          _ => {
+            return Err(DeserializerError::InvalidCommand(command.to_string(), self.position));
+          },
+        }
+      } else if data == '\r' || data == '\n' {
+        return Err(DeserializerError::InvalidNewLine(self.position));
+      } else if data == '"' {
+        if !state {
+          return Err(DeserializerError::UnexpectedValue(data, self.position));
+        }
+        match self.process_string_with_double_quote() {
+          Ok(t) => {
+            if let Value::String(content) = t.get_value() {
+              return Ok(self.create_token(Value::Command(command_name, content.to_owned())));
+            }
+          },
+          Err(e) => {
+            return Err(e);
+          },
+        }
+      }
+    }
+    Err(DeserializerError::UnexpectedTermination(self.position))
+  }
+
+  fn process_reference(&mut self) -> Result<Token, DeserializerError> {
+    let start_pos: usize = self.pointer;
+    while let Some(data) = self.advance(false) {
+      if self.is_ascii_from_chars(data) {
+        continue;
+      } else if data == '_' || data == '-' {
+        continue;
+      } else if data == ' ' || data == '\t' || data == ',' || data == ';' || data == ']' {
+        self.pointer -= 1;
+        self.position.1 -= 1;
+        return Ok(self.create_token(Value::Reference(self.data[start_pos..self.pointer].to_string())));
+      } else {
+        return Err(DeserializerError::UnexpectedValue(data, self.position));
+      }
+    }
+    Err(DeserializerError::UnexpectedTermination(self.position))
+  }
+
+  fn process_dereference(&mut self) -> Result<Token, DeserializerError> {
+    let start_pos: usize = self.pointer;
+    while let Some(data) = self.advance(false) {
+      if self.is_ascii_from_chars(data) {
+        continue;
+      } else if data == '_' || data == '-' {
+        continue;
+      } else if data == ' ' || data == '\t' || data == ',' || data == ';' || data == ']' {
+        self.pointer -= 1;
+        self.position.1 -= 1;
+        return Ok(self.create_token(Value::Reference(self.data[start_pos..self.pointer].to_string())));
+      } else {
+        return Err(DeserializerError::UnexpectedValue(data, self.position));
+      }
+    }
+    Err(DeserializerError::UnexpectedTermination(self.position))
+  }
+
+  fn process_string_with_double_quote(&mut self) -> Result<Token, DeserializerError> {
+    //Previous check
+    if let Some(data) = self.data.chars().nth(self.pointer - 2) {
+      if data != ' ' && data != '\t' && data != '{' && data != '[' && data != ';' && data != ',' && data != '\r' && data != '\n' {
+        return Err(DeserializerError::UnexpectedValue(data, self.position));
+      }
+    }
     let mut start_pos: usize = self.pointer;
     let mut buffer = Vec::<u8>::new();
     while let Some(data) = self.advance(false) {
@@ -65,7 +155,7 @@ impl Lexer {
         buffer.extend_from_slice(self.data[start_pos..self.pointer - 1].as_bytes());
         let next_char = self.peek(1);
         if next_char != ',' && next_char != ';' && next_char != ' ' && next_char != '\t' && next_char != '\r' && next_char != '\n' && next_char != ']' {
-          return Err(LexerError::UnexpectedValue(next_char, self.position));
+          return Err(DeserializerError::UnexpectedValue(next_char, (self.position.0, self.position.1 + 1)));
         }
         return Ok(self.create_token(Value::String(String::from_utf8_lossy(&buffer).to_string())));
       } else if data == '\\' {
@@ -74,61 +164,61 @@ impl Lexer {
             buffer.extend_from_slice(&self.data[start_pos..self.pointer - 1].as_bytes());
             buffer.extend_from_slice("\n".as_bytes());
             self.move_pointer_by(1);
-            self.position.1 += 1;
             start_pos = self.pointer;
           },
           'r' => {
             buffer.extend_from_slice(&self.data[start_pos..self.pointer - 1].as_bytes());
             buffer.extend_from_slice("\r".as_bytes());
             self.move_pointer_by(1);
-            self.position.1 += 1;
             start_pos = self.pointer;
           },
           't' => {
             buffer.extend_from_slice(&self.data[start_pos..self.pointer - 1].as_bytes());
             buffer.extend_from_slice("\t".as_bytes());
             self.move_pointer_by(1);
-            self.position.1 += 1;
             start_pos = self.pointer;
           },
           '\\' => {
             buffer.extend_from_slice(&self.data[start_pos..self.pointer - 1].as_bytes());
             buffer.extend_from_slice("\\".as_bytes());
             self.move_pointer_by(1);
-            self.position.1 += 1;
             start_pos = self.pointer;
           },
           '"' => {
             buffer.extend_from_slice(&self.data[start_pos..self.pointer - 1].as_bytes());
             buffer.extend_from_slice("\"".as_bytes());
             self.move_pointer_by(1);
-            self.position.1 += 1;
             start_pos = self.pointer;
           },
           '\'' => {
             buffer.extend_from_slice(&self.data[start_pos..self.pointer - 1].as_bytes());
             buffer.extend_from_slice("'".as_bytes());
             self.move_pointer_by(1);
-            self.position.1 += 1;
             start_pos = self.pointer;
           },
           '\0' => {
-            return Err(LexerError::UnexpectedTermination(self.position));
+            return Err(DeserializerError::UnexpectedTermination(self.position));
           },
           other => {
-            return Err(LexerError::UnexpectedValue(other, self.position));
+            return Err(DeserializerError::UnexpectedValue(other, self.position));
           },
         }
       } else if data == '\n' || data == '\r' {
-        return Err(LexerError::InvalidNewLineInString(self.position));
+        return Err(DeserializerError::InvalidNewLine(self.position));
       } else {
         continue;
       }
     }
-    Err(LexerError::UnexpectedTermination(self.position))
+    Err(DeserializerError::UnexpectedTermination(self.position))
   }
 
-  fn process_string_with_single_quote(&mut self) -> Result<Token, LexerError> {
+  fn process_string_with_single_quote(&mut self) -> Result<Token, DeserializerError> {
+    //Previous check
+    if let Some(data) = self.data.chars().nth(self.pointer - 2) {
+      if data != ' ' && data != '\t' && data != '{' && data != '[' && data != ';' && data != ',' && data != '\r' && data != '\n' {
+        return Err(DeserializerError::UnexpectedValue(data, self.position));
+      }
+    }
     let mut start_pos: usize = self.pointer;
     let mut buffer = Vec::<u8>::new();
     while let Some(data) = self.advance(false) {
@@ -136,7 +226,7 @@ impl Lexer {
         buffer.extend_from_slice(self.data[start_pos..self.pointer - 1].as_bytes());
         let next_char = self.peek(1);
         if next_char != ',' && next_char != ';' && next_char != ' ' && next_char != '\t' && next_char != '\r' && next_char != '\n' && next_char != ']' {
-          return Err(LexerError::UnexpectedValue(next_char, self.position));
+          return Err(DeserializerError::UnexpectedValue(next_char, (self.position.0, self.position.1 + 1)));
         }
         return Ok(self.create_token(Value::String(String::from_utf8_lossy(&buffer).to_string())));
       } else if data == '\\' {
@@ -145,96 +235,100 @@ impl Lexer {
             buffer.extend_from_slice(&self.data[start_pos..self.pointer - 1].as_bytes());
             buffer.extend_from_slice("\n".as_bytes());
             self.move_pointer_by(1);
-            self.position.1 += 1;
             start_pos = self.pointer;
           },
           'r' => {
             buffer.extend_from_slice(&self.data[start_pos..self.pointer - 1].as_bytes());
             buffer.extend_from_slice("\r".as_bytes());
             self.move_pointer_by(1);
-            self.position.1 += 1;
             start_pos = self.pointer;
           },
           't' => {
             buffer.extend_from_slice(&self.data[start_pos..self.pointer - 1].as_bytes());
             buffer.extend_from_slice("\t".as_bytes());
             self.move_pointer_by(1);
-            self.position.1 += 1;
             start_pos = self.pointer;
           },
           '\\' => {
             buffer.extend_from_slice(&self.data[start_pos..self.pointer - 1].as_bytes());
             buffer.extend_from_slice("\\".as_bytes());
             self.move_pointer_by(1);
-            self.position.1 += 1;
             start_pos = self.pointer;
           },
           '"' => {
             buffer.extend_from_slice(&self.data[start_pos..self.pointer - 1].as_bytes());
             buffer.extend_from_slice("\"".as_bytes());
             self.move_pointer_by(1);
-            self.position.1 += 1;
             start_pos = self.pointer;
           },
           '\'' => {
             buffer.extend_from_slice(&self.data[start_pos..self.pointer - 1].as_bytes());
             buffer.extend_from_slice("'".as_bytes());
             self.move_pointer_by(1);
-            self.position.1 += 1;
             start_pos = self.pointer;
           },
           '\0' => {
-            return Err(LexerError::UnexpectedTermination(self.position));
+            return Err(DeserializerError::UnexpectedTermination(self.position));
           },
           other => {
-            return Err(LexerError::UnexpectedValue(other, self.position));
+            return Err(DeserializerError::UnexpectedValue(other, self.position));
           },
         }
       } else if data == '\n' || data == '\r' {
-        return Err(LexerError::InvalidNewLineInString(self.position));
+        return Err(DeserializerError::InvalidNewLine(self.position));
       } else {
         continue;
       }
     }
-    Err(LexerError::UnexpectedTermination(self.position))
+    Err(DeserializerError::UnexpectedTermination(self.position))
   }
 
-  fn process_raw_string(&mut self) -> Result<Token, LexerError> {
+  fn process_raw_string(&mut self) -> Result<Token, DeserializerError> {
     let start_pos: usize = self.pointer - 1;
     while let Some(data) = self.advance(false) {
       match data {
         '/' => {
           if '/' == self.peek(1) {
             self.pointer -= 1;
+            self.position.1 -= 1;
             return Ok(self.create_token(Value::String(self.data[start_pos..self.pointer].to_string())));
           } else {
             continue;
           }
         },
         ' ' => {
-          return Ok(self.create_token(Value::String(self.data[start_pos..self.pointer - 1].to_string())));
+          self.pointer -= 1;
+          self.position.1 -= 1;
+          return Ok(self.create_token(Value::String(self.data[start_pos..self.pointer].to_string())));
         },
         '\t' => {
-          return Ok(self.create_token(Value::String(self.data[start_pos..self.pointer - 1].to_string())));
+          self.pointer -= 1;
+          self.position.1 -= 1;
+          return Ok(self.create_token(Value::String(self.data[start_pos..self.pointer].to_string())));
         },
         '\n' => {
           self.pointer -= 1;
+          self.position.1 -= 1;
           return Ok(self.create_token(Value::String(self.data[start_pos..self.pointer].to_string())));
         },
         '\r' => {
           self.pointer -= 1;
+          self.position.1 -= 1;
           return Ok(self.create_token(Value::String(self.data[start_pos..self.pointer].to_string())));
         },
         ',' => {
           self.pointer -= 1;
+          self.position.1 -= 1;
           return Ok(self.create_token(Value::String(self.data[start_pos..self.pointer].to_string())));
         },
         ';' => {
           self.pointer -= 1;
+          self.position.1 -= 1;
           return Ok(self.create_token(Value::String(self.data[start_pos..self.pointer].to_string())));
         },
         ']' => {
           self.pointer -= 1;
+          self.position.1 -= 1;
           return Ok(self.create_token(Value::String(self.data[start_pos..self.pointer].to_string())));
         },
         _ => {
@@ -245,7 +339,7 @@ impl Lexer {
     Ok(self.create_token(Value::String(self.data[start_pos..self.pointer].to_string())))
   }
 
-  fn process_number(&mut self) -> Result<Token, LexerError> {
+  fn process_number(&mut self) -> Result<Token, DeserializerError> {
     let start_pos: usize = self.pointer - 1;
     while let Some(data) = self.advance(false) {
       if self.is_digit_from_chars(data) {
@@ -254,10 +348,12 @@ impl Lexer {
         return self.process_float_number(start_pos);
       } else if data == ' ' || data == '\t' || data == '\r' || data == '\n' || data == ']' || data == ',' || data == ';' {
         self.pointer -= 1;
+        self.position.1 -= 1;
         return Ok(self.create_token(Value::UnsignedIntegerNumber((self.data[start_pos..self.pointer]).parse::<u32>().unwrap())));
       } else if data == '/' {
         if '/' == self.peek(1) {
           self.pointer -= 1;
+          self.position.1 -= 1;
           return Ok(self.create_token(Value::UnsignedIntegerNumber(self.data[start_pos..self.pointer].parse::<u32>().unwrap())));
         } else {
           continue;
@@ -270,7 +366,7 @@ impl Lexer {
     Ok(self.create_token(Value::UnsignedIntegerNumber(self.data[start_pos..self.pointer].parse::<u32>().unwrap())))
   }
 
-  fn process_signed_number(&mut self) -> Result<Token, LexerError> {
+  fn process_signed_number(&mut self) -> Result<Token, DeserializerError> {
     let start_pos: usize = self.pointer - 1;
     while let Some(data) = self.advance(false) {
       if self.is_digit_from_chars(data) {
@@ -279,10 +375,12 @@ impl Lexer {
         return self.process_float_number(start_pos);
       } else if data == ' ' || data == '\t' || data == '\r' || data == '\n' || data == ']' || data == ',' || data == ';' {
         self.pointer -= 1;
+        self.position.1 -= 1;
         return Ok(self.create_token(Value::SignedFloatNumber((self.data[start_pos..self.pointer]).parse::<i32>().unwrap())));
       } else if data == '/' {
         if '/' == self.peek(1) {
           self.pointer -= 1;
+          self.position.1 -= 1;
           return Ok(self.create_token(Value::SignedFloatNumber(self.data[start_pos..self.pointer].parse::<i32>().unwrap())));
         } else {
           continue;
@@ -295,16 +393,18 @@ impl Lexer {
     Ok(self.create_token(Value::SignedFloatNumber(self.data[start_pos..self.pointer].parse::<i32>().unwrap())))
   }
 
-  fn process_float_number(&mut self, start_pos: usize) -> Result<Token, LexerError> {
+  fn process_float_number(&mut self, start_pos: usize) -> Result<Token, DeserializerError> {
     while let Some(data) = self.advance(false) {
       if self.is_digit_from_chars(data) {
         continue;
       } else if data == ' ' || data == '\t' || data == '\r' || data == '\n' || data == ']' || data == ',' || data == ';' {
         self.pointer -= 1;
+        self.position.1 -= 1;
         return Ok(self.create_token(Value::FloatNumber((self.data[start_pos..self.pointer]).parse::<f32>().unwrap())));
       } else if data == '/' {
         if '/' == self.peek(1) {
           self.pointer -= 1;
+          self.position.1 -= 1;
           return Ok(self.create_token(Value::FloatNumber(self.data[start_pos..self.pointer].parse::<f32>().unwrap())));
         } else {
           continue;
@@ -317,7 +417,7 @@ impl Lexer {
     Ok(self.create_token(Value::FloatNumber(self.data[start_pos..self.pointer].parse::<f32>().unwrap())))
   }
 
-  fn process_specific_sets(&mut self, sets: u8) -> Result<Token, LexerError> {
+  fn process_specific_sets(&mut self, sets: u8) -> Result<Token, DeserializerError> {
     /*
       Sets:
        - 0: true
@@ -339,7 +439,7 @@ impl Lexer {
               return self.process_raw_string();
             }
           } else {
-            return Err(LexerError::UnexpectedTermination(self.position));
+            return Err(DeserializerError::UnexpectedTermination(self.position));
           }
         }
         let peeked = self.peek(1);
@@ -363,7 +463,7 @@ impl Lexer {
               return self.process_raw_string();
             }
           } else {
-            return Err(LexerError::UnexpectedTermination(self.position));
+            return Err(DeserializerError::UnexpectedTermination(self.position));
           }
         }
         let peeked = self.peek(1);
@@ -387,7 +487,7 @@ impl Lexer {
               return self.process_raw_string();
             }
           } else {
-            return Err(LexerError::UnexpectedTermination(self.position));
+            return Err(DeserializerError::UnexpectedTermination(self.position));
           }
         }
         let peeked = self.peek(1);
@@ -400,13 +500,15 @@ impl Lexer {
           self.process_raw_string()
         }
       },
-      _ => Err(LexerError::NoSetsFound(self.position)),
+      _ => Err(DeserializerError::NoSetsFound(self.position)),
     }
   }
 
   fn process_comment(&mut self) {
     while let Some(data) = self.advance(false) {
       if data == '\n' || data == '\r' {
+        self.pointer -= 1;
+        self.position.1 -= 1;
         return;
       }
     }
