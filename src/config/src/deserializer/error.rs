@@ -5,7 +5,7 @@ pub enum LexerError {
   UnexpectedValue(char, (usize, usize)),
   UnexpectedTermination((usize, usize)),
   InvalidNewLineInString((usize, usize)),
-  NoSetsFound((usize,usize))
+  NoSetsFound((usize, usize)),
 }
 
 impl Display for LexerError {
