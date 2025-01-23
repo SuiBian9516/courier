@@ -30,18 +30,18 @@ impl Lexer {
         ')' => Ok(self.create_token(Value::CloseParen)),
         '&' => Ok(self.create_token(Value::Reference)),
         '*' => Ok(self.create_token(Value::Dereference)),
-        '-' => self.process_number(),
+        '-' => self.process_signed_number(),
         't' => self.process_specific_sets(0),
         'f' => self.process_specific_sets(1),
         'v' => self.process_specific_sets(2),
-        '/' =>{
-          if self.peek(1) == '/'{
+        '/' => {
+          if self.peek(1) == '/' {
             self.process_comment();
             Ok(self.create_token(Value::Comment))
-          }else{
+          } else {
             Err(LexerError::UnexpectedValue('/', self.position))
           }
-        }
+        },
         other => {
           if self.is_ascii_from_chars(other) {
             self.process_raw_string()
@@ -62,9 +62,9 @@ impl Lexer {
     let mut buffer = Vec::<u8>::new();
     while let Some(data) = self.advance(false) {
       if data == '"' {
-        buffer.extend_from_slice(self.data[start_pos..self.pointer -1].as_bytes());
+        buffer.extend_from_slice(self.data[start_pos..self.pointer - 1].as_bytes());
         let next_char = self.peek(1);
-        if next_char != ',' && next_char != ';' && next_char != ' ' && next_char != '\t' && next_char != '\r' && next_char != '\n'&& next_char != ']'{
+        if next_char != ',' && next_char != ';' && next_char != ' ' && next_char != '\t' && next_char != '\r' && next_char != '\n' && next_char != ']' {
           return Err(LexerError::UnexpectedValue(next_char, self.position));
         }
         return Ok(self.create_token(Value::String(String::from_utf8_lossy(&buffer).to_string())));
@@ -133,9 +133,9 @@ impl Lexer {
     let mut buffer = Vec::<u8>::new();
     while let Some(data) = self.advance(false) {
       if data == '\'' {
-        buffer.extend_from_slice(self.data[start_pos..self.pointer -1 ].as_bytes());
+        buffer.extend_from_slice(self.data[start_pos..self.pointer - 1].as_bytes());
         let next_char = self.peek(1);
-        if next_char != ',' && next_char != ';' && next_char != ' ' && next_char != '\t' &&next_char != '\r' &&next_char != '\n'&& next_char != ']'{
+        if next_char != ',' && next_char != ';' && next_char != ' ' && next_char != '\t' && next_char != '\r' && next_char != '\n' && next_char != ']' {
           return Err(LexerError::UnexpectedValue(next_char, self.position));
         }
         return Ok(self.create_token(Value::String(String::from_utf8_lossy(&buffer).to_string())));
@@ -205,7 +205,7 @@ impl Lexer {
       match data {
         '/' => {
           if '/' == self.peek(1) {
-            self.pointer -=1;
+            self.pointer -= 1;
             return Ok(self.create_token(Value::String(self.data[start_pos..self.pointer].to_string())));
           } else {
             continue;
@@ -222,19 +222,19 @@ impl Lexer {
           return Ok(self.create_token(Value::String(self.data[start_pos..self.pointer].to_string())));
         },
         '\r' => {
-          self.pointer -=1;
+          self.pointer -= 1;
           return Ok(self.create_token(Value::String(self.data[start_pos..self.pointer].to_string())));
         },
         ',' => {
-          self.pointer -=1;
+          self.pointer -= 1;
           return Ok(self.create_token(Value::String(self.data[start_pos..self.pointer].to_string())));
         },
         ';' => {
-          self.pointer -=1;
+          self.pointer -= 1;
           return Ok(self.create_token(Value::String(self.data[start_pos..self.pointer].to_string())));
         },
         ']' => {
-          self.pointer -=1;
+          self.pointer -= 1;
           return Ok(self.create_token(Value::String(self.data[start_pos..self.pointer].to_string())));
         },
         _ => {
@@ -245,46 +245,71 @@ impl Lexer {
     Ok(self.create_token(Value::String(self.data[start_pos..self.pointer].to_string())))
   }
 
-  fn process_number(&mut self)->Result<Token,LexerError>{
-    let start_pos :usize = self.pointer -1;
+  fn process_number(&mut self) -> Result<Token, LexerError> {
+    let start_pos: usize = self.pointer - 1;
     while let Some(data) = self.advance(false) {
-      if self.is_digit_from_chars(data){
+      if self.is_digit_from_chars(data) {
         continue;
-      }else if data == '.'{
+      } else if data == '.' {
         return self.process_float_number(start_pos);
-      }else if data == ' ' || data == '\t' || data == '\r' || data == '\n' ||data == ']'||data == ','||data == ';'{
+      } else if data == ' ' || data == '\t' || data == '\r' || data == '\n' || data == ']' || data == ',' || data == ';' {
         self.pointer -= 1;
-        return Ok(self.create_token(Value::IntegerNumber((self.data[start_pos..self.pointer]).parse::<i32>().unwrap())));
-      }else if data == '/' {
-          if '/' == self.peek(1) {
-            self.pointer -=1;
-            return Ok(self.create_token(Value::IntegerNumber(self.data[start_pos..self.pointer].parse::<i32>().unwrap())));
-          } else {
-            continue;
-          }
-      }else{
+        return Ok(self.create_token(Value::UnsignedIntegerNumber((self.data[start_pos..self.pointer]).parse::<u32>().unwrap())));
+      } else if data == '/' {
+        if '/' == self.peek(1) {
+          self.pointer -= 1;
+          return Ok(self.create_token(Value::UnsignedIntegerNumber(self.data[start_pos..self.pointer].parse::<u32>().unwrap())));
+        } else {
+          continue;
+        }
+      } else {
         self.move_pointer_to(start_pos + 1);
         return self.process_raw_string();
       }
     }
-    Ok(self.create_token(Value::IntegerNumber(self.data[start_pos..self.pointer].parse::<i32>().unwrap())))
+    Ok(self.create_token(Value::UnsignedIntegerNumber(self.data[start_pos..self.pointer].parse::<u32>().unwrap())))
   }
 
-  fn process_float_number(&mut self,start_pos:usize)->Result<Token,LexerError>{
+  fn process_signed_number(&mut self) -> Result<Token, LexerError> {
+    let start_pos: usize = self.pointer - 1;
     while let Some(data) = self.advance(false) {
-      if self.is_digit_from_chars(data){
+      if self.is_digit_from_chars(data) {
         continue;
-      }else if data == ' ' || data == '\t' || data == '\r' || data == '\n' || data == ']'||data == ','||data == ';'{
+      } else if data == '.' {
+        return self.process_float_number(start_pos);
+      } else if data == ' ' || data == '\t' || data == '\r' || data == '\n' || data == ']' || data == ',' || data == ';' {
+        self.pointer -= 1;
+        return Ok(self.create_token(Value::SignedFloatNumber((self.data[start_pos..self.pointer]).parse::<i32>().unwrap())));
+      } else if data == '/' {
+        if '/' == self.peek(1) {
+          self.pointer -= 1;
+          return Ok(self.create_token(Value::SignedFloatNumber(self.data[start_pos..self.pointer].parse::<i32>().unwrap())));
+        } else {
+          continue;
+        }
+      } else {
+        self.move_pointer_to(start_pos + 1);
+        return self.process_raw_string();
+      }
+    }
+    Ok(self.create_token(Value::SignedFloatNumber(self.data[start_pos..self.pointer].parse::<i32>().unwrap())))
+  }
+
+  fn process_float_number(&mut self, start_pos: usize) -> Result<Token, LexerError> {
+    while let Some(data) = self.advance(false) {
+      if self.is_digit_from_chars(data) {
+        continue;
+      } else if data == ' ' || data == '\t' || data == '\r' || data == '\n' || data == ']' || data == ',' || data == ';' {
         self.pointer -= 1;
         return Ok(self.create_token(Value::FloatNumber((self.data[start_pos..self.pointer]).parse::<f32>().unwrap())));
-      }else if data == '/' {
-          if '/' == self.peek(1) {
-            self.pointer -=1;
-            return Ok(self.create_token(Value::FloatNumber(self.data[start_pos..self.pointer].parse::<f32>().unwrap())));
-          } else {
-            continue;
-          }
-      }else{
+      } else if data == '/' {
+        if '/' == self.peek(1) {
+          self.pointer -= 1;
+          return Ok(self.create_token(Value::FloatNumber(self.data[start_pos..self.pointer].parse::<f32>().unwrap())));
+        } else {
+          continue;
+        }
+      } else {
         self.move_pointer_to(start_pos + 1);
         return self.process_raw_string();
       }
@@ -292,7 +317,7 @@ impl Lexer {
     Ok(self.create_token(Value::FloatNumber(self.data[start_pos..self.pointer].parse::<f32>().unwrap())))
   }
 
-  fn process_specific_sets(&mut self,sets:u8)->Result<Token,LexerError>{
+  fn process_specific_sets(&mut self, sets: u8) -> Result<Token, LexerError> {
     /*
       Sets:
        - 0: true
@@ -302,88 +327,86 @@ impl Lexer {
        Only switch to string parsing function if it meets other characters.
     */
     let start_pos: usize = self.pointer;
-    match sets{
-      0 =>{
-        const SET:[char;3] = ['r','u','e'];
-        for c in SET{
-          if let Some(data) = self.advance(false){
-            if data == c{
+    match sets {
+      0 => {
+        const SET: [char; 3] = ['r', 'u', 'e'];
+        for c in SET {
+          if let Some(data) = self.advance(false) {
+            if data == c {
               continue;
-            }else{
+            } else {
               self.move_pointer_to(start_pos);
               return self.process_raw_string();
             }
-          }else{
+          } else {
             return Err(LexerError::UnexpectedTermination(self.position));
           }
         }
         let peeked = self.peek(1);
-        if peeked == ',' || peeked == ';' || peeked == ' ' || peeked == '\t' || peeked == ']'|| peeked == '\r'|| peeked == '\n'{
+        if peeked == ',' || peeked == ';' || peeked == ' ' || peeked == '\t' || peeked == ']' || peeked == '\r' || peeked == '\n' {
           Ok(self.create_token(Value::Boolean(true)))
-        }else if peeked == '/' && self.peek(2) == '/'{
+        } else if peeked == '/' && self.peek(2) == '/' {
           Ok(self.create_token(Value::Boolean(true)))
-        }else{
+        } else {
           self.move_pointer_to(start_pos);
           self.process_raw_string()
         }
-      }
-      1 =>{
-        const SET:[char;4] = ['a','l','s', 'e'];
-        for c in SET{
-          if let Some(data) = self.advance(false){
-            if data == c{
+      },
+      1 => {
+        const SET: [char; 4] = ['a', 'l', 's', 'e'];
+        for c in SET {
+          if let Some(data) = self.advance(false) {
+            if data == c {
               continue;
-            }else{
+            } else {
               self.move_pointer_to(start_pos);
               return self.process_raw_string();
             }
-          }else{
+          } else {
             return Err(LexerError::UnexpectedTermination(self.position));
           }
         }
         let peeked = self.peek(1);
-        if peeked == ',' || peeked == ';' || peeked == ' ' || peeked == '\t' || peeked == ']'|| peeked == '\r'|| peeked == '\n'{
+        if peeked == ',' || peeked == ';' || peeked == ' ' || peeked == '\t' || peeked == ']' || peeked == '\r' || peeked == '\n' {
           Ok(self.create_token(Value::Boolean(false)))
-        }else if peeked == '/' && self.peek(2) == '/'{
+        } else if peeked == '/' && self.peek(2) == '/' {
           Ok(self.create_token(Value::Boolean(false)))
-        }else{
+        } else {
           self.move_pointer_to(start_pos);
           self.process_raw_string()
         }
-      }
-      2 =>{
-        const SET:[char;3] = ['o','i','d'];
-        for c in SET{
-          if let Some(data) = self.advance(false){
-            if data == c{
+      },
+      2 => {
+        const SET: [char; 3] = ['o', 'i', 'd'];
+        for c in SET {
+          if let Some(data) = self.advance(false) {
+            if data == c {
               continue;
-            }else{
+            } else {
               self.move_pointer_to(start_pos);
               return self.process_raw_string();
             }
-          }else{
+          } else {
             return Err(LexerError::UnexpectedTermination(self.position));
           }
         }
         let peeked = self.peek(1);
-        if peeked == ',' || peeked == ';' || peeked == ' ' || peeked == '\t' || peeked == ']'|| peeked == '\r'|| peeked == '\n'{
+        if peeked == ',' || peeked == ';' || peeked == ' ' || peeked == '\t' || peeked == ']' || peeked == '\r' || peeked == '\n' {
           Ok(self.create_token(Value::Void))
-        }else if peeked == '/' && self.peek(2) == '/'{
+        } else if peeked == '/' && self.peek(2) == '/' {
           Ok(self.create_token(Value::Void))
-        }else{
+        } else {
           self.move_pointer_to(start_pos);
           self.process_raw_string()
         }
-      }
-      _ =>{
-        Err(LexerError::NoSetsFound(self.position))
-      }
+      },
+      _ => Err(LexerError::NoSetsFound(self.position)),
     }
   }
 
-  fn process_comment(&mut self){
-    while let Some(data) = self.advance(false){
-      if data == '\n' || data == '\r'{
+  fn process_comment(&mut self) {
+    while let Some(data) = self.advance(false) {
+      if data == '\n' || data == '\r' {
         return;
       }
     }

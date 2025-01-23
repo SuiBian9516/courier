@@ -9,8 +9,8 @@ pub enum Value {
   Boolean(bool),
 
   FloatNumber(f32),
-
-  IntegerNumber(i32),
+  UnsignedIntegerNumber(u32),
+  SignedFloatNumber(i32),
 
   Object(BTreeMap<String, Value>),
 
