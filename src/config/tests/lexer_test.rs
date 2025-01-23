@@ -213,11 +213,11 @@ fn paren_test() {
 
 #[test]
 fn pound_test() {
-  let d: String = String::from(r##"#"##);
+  let d: String = String::from(r##"#include "./abc";"##);
   let mut lex = Lexer::new(d);
   match lex.get() {
     Ok(data) => {
-      assert_eq!(*data.get_value(), Value::Pound)
+      assert_eq!(*data.get_value(), Value::Command("include".to_string(), "./abc".to_string()))
     },
     Err(e) => {
       panic!("Error Message: \n{:?}", e);
@@ -227,11 +227,11 @@ fn pound_test() {
 
 #[test]
 fn reference_test() {
-  let d: String = String::from(r##"&"##);
+  let d: String = String::from(r##"&abc;"##);
   let mut lex = Lexer::new(d);
   match lex.get() {
     Ok(data) => {
-      assert_eq!(*data.get_value(), Value::Reference)
+      assert_eq!(*data.get_value(), Value::Reference("abc".to_string()))
     },
     Err(e) => {
       panic!("Error Message: \n{:?}", e);
@@ -241,11 +241,11 @@ fn reference_test() {
 
 #[test]
 fn dereference_test() {
-  let d: String = String::from(r##"*"##);
+  let d: String = String::from(r##"*abc;"##);
   let mut lex = Lexer::new(d);
   match lex.get() {
     Ok(data) => {
-      assert_eq!(*data.get_value(), Value::Dereference)
+      assert_eq!(*data.get_value(), Value::Dereference("abc".to_string()))
     },
     Err(e) => {
       panic!("Error Message: \n{:?}", e);
@@ -292,5 +292,48 @@ fn comment_test() {
     Err(e) => {
       panic!("Error Message: \n{:?}", e);
     },
+  }
+}
+
+#[test]
+fn all_test() {
+  let d: String = String::from(
+    r##"#include "./path/to/what/you/want/to/include";//comment
+
+name "Marquage";//comment
+
+description "A simple mark language mainly used as config files";//comment
+
+version [1,0,0];///////////a
+
+authors {//comment
+  "SuiBian9516" "m1311826090@outlook.com";//
+};
+
+is_latest false;
+
+is_simple true;
+
+is_widely_used void;
+
+&variable "Only accept simple data structures";
+
+&year 2024;
+
+copyright_year *year;"##,
+  );
+  let mut lex = Lexer::new(d);
+  loop {
+    match lex.get() {
+      Ok(t) => {
+        if *t.get_value() == Value::End {
+          return;
+        }
+        println!("Received Token: {:?}", t);
+      },
+      Err(e) => {
+        panic!("Error Message:\n{:?}", e);
+      },
+    }
   }
 }
