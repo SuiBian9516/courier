@@ -1,18 +1,21 @@
-use crate::Value;
-
-use super::position::Position;
+use super::{literal::Literal, position::Position};
 
 #[derive(Debug)]
-pub struct Token(Value, Position);
+pub struct Token(Literal, Position);
 
 impl Token {
-  pub fn new(value: Value, position: Position) -> Self {
-    Self(value, position)
+  pub fn new(literal: Literal, position: Position) -> Self {
+    Self(literal, position)
   }
 
   #[inline(always)]
-  pub fn get_value(&self) -> &Value {
+  pub fn get_literal_ref(&self) -> &Literal {
     &self.0
+  }
+
+  #[inline(always)]
+  pub fn get_literal(self) -> Literal {
+    self.0
   }
 
   #[inline(always)]

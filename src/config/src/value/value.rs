@@ -1,10 +1,10 @@
-use std::collections::BTreeMap;
+use crate::map::IndexMap;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Value {
   Void,
 
-  Command(String, String),
+  IncludeCommand(String, String),
 
   String(String),
 
@@ -12,28 +12,9 @@ pub enum Value {
 
   FloatNumber(f32),
   UnsignedIntegerNumber(u32),
-  SignedFloatNumber(i32),
+  SignedIntegerNumber(i32),
 
-  Object(BTreeMap<String, Value>),
+  Object(IndexMap<String, Value>),
 
   Array(Vec<Value>),
-
-  OpenBrace,
-  CloseBrace,
-
-  OpenParen,
-  CloseParen,
-
-  OpenBracket,
-  CloseBracket,
-
-  Semicolon,
-  Comma,
-
-  Reference(String),
-  Dereference(String),
-
-  Comment,
-
-  End,
 }

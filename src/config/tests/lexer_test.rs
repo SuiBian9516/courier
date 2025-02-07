@@ -1,6 +1,5 @@
 use config::deserializer::lexer::Lexer;
-use config::Value;
-
+use config::deserializer::literal::Literal;
 #[test]
 fn string_test() {
   let d: String = String::from(
@@ -11,7 +10,7 @@ fn string_test() {
   let mut lex = Lexer::new(d);
   match lex.get() {
     Ok(data) => {
-      assert_eq!(*data.get_value(), Value::String("String.test\nnewline\r\nnewline".to_string()))
+      assert_eq!(*data.get_literal_ref(), Literal::String("String.test\nnewline\r\nnewline".to_string()))
     },
     Err(e) => {
       panic!("Error Message: \n{:?}", e);
@@ -29,7 +28,7 @@ fn integer_number_test() {
   let mut lex = Lexer::new(d);
   match lex.get() {
     Ok(data) => {
-      assert_eq!(*data.get_value(), Value::UnsignedIntegerNumber(123456))
+      assert_eq!(*data.get_literal_ref(), Literal::UnsignedIntegerNumber(123456))
     },
     Err(e) => {
       panic!("Error Message: \n{:?}", e);
@@ -47,7 +46,7 @@ fn float_number_test() {
   let mut lex = Lexer::new(d);
   match lex.get() {
     Ok(data) => {
-      assert_eq!(*data.get_value(), Value::FloatNumber(123456.123456))
+      assert_eq!(*data.get_literal_ref(), Literal::FloatNumber(123456.123456))
     },
     Err(e) => {
       panic!("Error Message: \n{:?}", e);
@@ -65,7 +64,7 @@ fn negative_integer_number_test() {
   let mut lex = Lexer::new(d);
   match lex.get() {
     Ok(data) => {
-      assert_eq!(*data.get_value(), Value::SignedFloatNumber(-123456))
+      assert_eq!(*data.get_literal_ref(), Literal::SignedIntegerNumber(-123456))
     },
     Err(e) => {
       panic!("Error Message: \n{:?}", e);
@@ -83,7 +82,7 @@ fn negative_float_number_test() {
   let mut lex = Lexer::new(d);
   match lex.get() {
     Ok(data) => {
-      assert_eq!(*data.get_value(), Value::FloatNumber(-123456.123456))
+      assert_eq!(*data.get_literal_ref(), Literal::FloatNumber(-123456.123456))
     },
     Err(e) => {
       panic!("Error Message: \n{:?}", e);
@@ -101,7 +100,7 @@ fn true_test() {
   let mut lex = Lexer::new(d);
   match lex.get() {
     Ok(data) => {
-      assert_eq!(*data.get_value(), Value::Boolean(true))
+      assert_eq!(*data.get_literal_ref(), Literal::Boolean(true))
     },
     Err(e) => {
       panic!("Error Message: \n{:?}", e);
@@ -119,7 +118,7 @@ fn false_test() {
   let mut lex = Lexer::new(d);
   match lex.get() {
     Ok(data) => {
-      assert_eq!(*data.get_value(), Value::Boolean(false))
+      assert_eq!(*data.get_literal_ref(), Literal::Boolean(false))
     },
     Err(e) => {
       panic!("Error Message: \n{:?}", e);
@@ -137,7 +136,7 @@ fn void_test() {
   let mut lex = Lexer::new(d);
   match lex.get() {
     Ok(data) => {
-      assert_eq!(*data.get_value(), Value::Void)
+      assert_eq!(*data.get_literal_ref(), Literal::Void)
     },
     Err(e) => {
       panic!("Error Message: \n{:?}", e);
@@ -151,7 +150,7 @@ fn brace_test() {
   let mut lex = Lexer::new(d);
   match lex.get() {
     Ok(data) => {
-      assert_eq!(*data.get_value(), Value::OpenBrace)
+      assert_eq!(*data.get_literal_ref(), Literal::OpenBrace)
     },
     Err(e) => {
       panic!("Error Message: \n{:?}", e);
@@ -159,7 +158,7 @@ fn brace_test() {
   }
   match lex.get() {
     Ok(data) => {
-      assert_eq!(*data.get_value(), Value::CloseBrace)
+      assert_eq!(*data.get_literal_ref(), Literal::CloseBrace)
     },
     Err(e) => {
       panic!("Error Message: \n{:?}", e);
@@ -173,7 +172,7 @@ fn bracket_test() {
   let mut lex = Lexer::new(d);
   match lex.get() {
     Ok(data) => {
-      assert_eq!(*data.get_value(), Value::OpenBracket)
+      assert_eq!(*data.get_literal_ref(), Literal::OpenBracket)
     },
     Err(e) => {
       panic!("Error Message: \n{:?}", e);
@@ -181,7 +180,7 @@ fn bracket_test() {
   }
   match lex.get() {
     Ok(data) => {
-      assert_eq!(*data.get_value(), Value::CloseBracket)
+      assert_eq!(*data.get_literal_ref(), Literal::CloseBracket)
     },
     Err(e) => {
       panic!("Error Message: \n{:?}", e);
@@ -195,7 +194,7 @@ fn paren_test() {
   let mut lex = Lexer::new(d);
   match lex.get() {
     Ok(data) => {
-      assert_eq!(*data.get_value(), Value::OpenParen)
+      assert_eq!(*data.get_literal_ref(), Literal::OpenParen)
     },
     Err(e) => {
       panic!("Error Message: \n{:?}", e);
@@ -203,7 +202,7 @@ fn paren_test() {
   }
   match lex.get() {
     Ok(data) => {
-      assert_eq!(*data.get_value(), Value::CloseParen)
+      assert_eq!(*data.get_literal_ref(), Literal::CloseParen)
     },
     Err(e) => {
       panic!("Error Message: \n{:?}", e);
@@ -217,7 +216,7 @@ fn pound_test() {
   let mut lex = Lexer::new(d);
   match lex.get() {
     Ok(data) => {
-      assert_eq!(*data.get_value(), Value::Command("include".to_string(), "./abc".to_string()))
+      assert_eq!(*data.get_literal_ref(), Literal::IncludeCommand("include".to_string(), "./abc".to_string()))
     },
     Err(e) => {
       panic!("Error Message: \n{:?}", e);
@@ -231,7 +230,7 @@ fn reference_test() {
   let mut lex = Lexer::new(d);
   match lex.get() {
     Ok(data) => {
-      assert_eq!(*data.get_value(), Value::Reference("abc".to_string()))
+      assert_eq!(*data.get_literal_ref(), Literal::Reference("abc".to_string()))
     },
     Err(e) => {
       panic!("Error Message: \n{:?}", e);
@@ -245,7 +244,7 @@ fn dereference_test() {
   let mut lex = Lexer::new(d);
   match lex.get() {
     Ok(data) => {
-      assert_eq!(*data.get_value(), Value::Dereference("abc".to_string()))
+      assert_eq!(*data.get_literal_ref(), Literal::Dereference("abc".to_string()))
     },
     Err(e) => {
       panic!("Error Message: \n{:?}", e);
@@ -259,7 +258,7 @@ fn comma_test() {
   let mut lex = Lexer::new(d);
   match lex.get() {
     Ok(data) => {
-      assert_eq!(*data.get_value(), Value::Comma)
+      assert_eq!(*data.get_literal_ref(), Literal::Comma)
     },
     Err(e) => {
       panic!("Error Message: \n{:?}", e);
@@ -273,7 +272,7 @@ fn semicolon_test() {
   let mut lex = Lexer::new(d);
   match lex.get() {
     Ok(data) => {
-      assert_eq!(*data.get_value(), Value::Semicolon)
+      assert_eq!(*data.get_literal_ref(), Literal::Semicolon)
     },
     Err(e) => {
       panic!("Error Message: \n{:?}", e);
@@ -287,7 +286,7 @@ fn comment_test() {
   let mut lex = Lexer::new(d);
   match lex.get() {
     Ok(data) => {
-      assert_eq!(*data.get_value(), Value::Comment)
+      assert_eq!(*data.get_literal_ref(), Literal::Comment)
     },
     Err(e) => {
       panic!("Error Message: \n{:?}", e);
@@ -326,7 +325,7 @@ copyright_year *year;"##,
   loop {
     match lex.get() {
       Ok(t) => {
-        if *t.get_value() == Value::End {
+        if *t.get_literal_ref() == Literal::End {
           return;
         }
         println!("Received Token: {:?}", t);
