@@ -1,33 +1,30 @@
-use crate::Value;
-
-use super::{error::DeserializerError, position::Position, token::Token};
+use super::{error::DeserializerError, literal::Literal, position::Position, token::Token};
 
 pub struct Lexer {
   pointer: usize,
   data: String,
-  // (line, column)
-  position: (usize, usize),
+  position: Position,
 }
 
 impl Lexer {
   pub fn new(data: String) -> Self {
-    Self { pointer: 0, data, position: (1, 0) }
+    Self { pointer: 0, data, position: Position::new(1, 0) }
   }
 
   pub fn get(&mut self) -> Result<Token, DeserializerError> {
     if let Some(data) = self.advance(true) {
       match data {
-        '#' => self.process_command(),
+        '#' => self.process_include_command(),
         '"' => self.process_string_with_double_quote(),
         '\'' => self.process_string_with_single_quote(),
-        ';' => Ok(self.create_token(Value::Semicolon)),
-        ',' => Ok(self.create_token(Value::Comma)),
-        '[' => Ok(self.create_token(Value::OpenBracket)),
-        ']' => Ok(self.create_token(Value::CloseBracket)),
-        '{' => Ok(self.create_token(Value::OpenBrace)),
-        '}' => Ok(self.create_token(Value::CloseBrace)),
-        '(' => Ok(self.create_token(Value::OpenParen)),
-        ')' => Ok(self.create_token(Value::CloseParen)),
+        ';' => Ok(self.create_token(Literal::Semicolon)),
+        ',' => Ok(self.create_token(Literal::Comma)),
+        '[' => Ok(self.create_token(Literal::OpenBracket)),
+        ']' => Ok(self.create_token(Literal::CloseBracket)),
+        '{' => Ok(self.create_token(Literal::OpenBrace)),
+        '}' => Ok(self.create_token(Literal::CloseBrace)),
+        '(' => Ok(self.create_token(Literal::OpenParen)),
+        ')' => Ok(self.create_token(Literal::CloseParen)),
         '&' => self.process_reference(),
         '*' => self.process_dereference(),
         '-' => self.process_signed_number(),
@@ -37,7 +34,7 @@ impl Lexer {
         '/' => {
           if self.peek(1) == '/' {
             self.process_comment();
-            Ok(self.create_token(Value::Comment))
+            Ok(self.create_token(Literal::Comment))
           } else {
             self.process_raw_string()
           }
@@ -48,57 +45,53 @@ impl Lexer {
           } else if self.is_digit_from_chars(other) {
             self.process_number()
           } else {
-            Err(DeserializerError::UnexpectedValue(other, self.position))
+            Err(DeserializerError::UnexpectedLiteral(other, self.position))
           }
         },
       }
     } else {
-      Ok(self.create_token(Value::End))
+      Ok(self.create_token(Literal::End))
     }
   }
 
-  fn process_command(&mut self) -> Result<Token, DeserializerError> {
-    let start_pos: usize = self.pointer;
-    let mut state: bool = false;
-    let mut command_name = String::from("");
-    while let Some(data) = self.advance(false) {
-      if self.is_ascii_from_chars(data) {
-        if state {
-          return Err(DeserializerError::UnexpectedValue(data, self.position));
+  fn process_include_command(&mut self) -> Result<Token, DeserializerError> {
+    let command_name: [char; 7] = ['i', 'n', 'c', 'l', 'u', 'd', 'e'];
+    for c in command_name {
+      if let Some(data) = self.advance(false) {
+        if data == c {
+          continue;
+        } else {
+          return Err(DeserializerError::UnexpectedLiteral(data, self.position));
         }
-        continue;
+      } else {
+        return Err(DeserializerError::UnexpectedTermination(self.position));
+      }
+    }
+    if self.peek(1) == ' ' || self.peek(1) == '\t' {
+      self.position.add_column_by(1);
+    } else {
+      return Err(DeserializerError::UnexpectedLiteral(self.peek(1), self.position));
+    }
+    let mut is_parsing: bool = false;
+    let mut start_pos: usize = 0;
+    while let Some(data) = self.advance(false) {
+      if data == '\r' || data == '\n' {
+        return Err(DeserializerError::InvalidNewLine(self.position));
       } else if data == ' ' || data == '\t' {
-        if state {
+        continue;
+      } else if data == '"' {
+        if is_parsing {
+          return Ok(self.create_token(Literal::IncludeCommand("include".to_string(), self.data[start_pos..self.pointer - 1].to_string())));
+        } else {
+          is_parsing = true;
+          start_pos = self.pointer;
           continue;
         }
-        let command = &self.data[start_pos..self.pointer - 1];
-        match command {
-          "include" => {
-            state = true;
-            command_name = "include".to_string();
-          },
-          "define" => {
-            todo!();
-          },
-          _ => {
-            return Err(DeserializerError::InvalidCommand(command.to_string(), self.position));
-          },
-        }
-      } else if data == '\r' || data == '\n' {
-        return Err(DeserializerError::InvalidNewLine(self.position));
-      } else if data == '"' {
-        if !state {
-          return Err(DeserializerError::UnexpectedValue(data, self.position));
-        }
-        match self.process_string_with_double_quote() {
-          Ok(t) => {
-            if let Value::String(content) = t.get_value() {
-              return Ok(self.create_token(Value::Command(command_name, content.to_owned())));
-            }
-          },
-          Err(e) => {
-            return Err(e);
-          },
+      } else {
+        if is_parsing {
+          continue;
+        } else {
+          return Err(DeserializerError::UnexpectedLiteral(data, self.position));
         }
       }
     }
@@ -114,10 +107,10 @@ impl Lexer {
         continue;
       } else if data == ' ' || data == '\t' || data == ',' || data == ';' || data == ']' {
         self.pointer -= 1;
-        self.position.1 -= 1;
-        return Ok(self.create_token(Value::Reference(self.data[start_pos..self.pointer].to_string())));
+        self.position.subtract_column_by(1);
+        return Ok(self.create_token(Literal::Reference(self.data[start_pos..self.pointer].to_string())));
       } else {
-        return Err(DeserializerError::UnexpectedValue(data, self.position));
+        return Err(DeserializerError::UnexpectedLiteral(data, self.position));
       }
     }
     Err(DeserializerError::UnexpectedTermination(self.position))
@@ -132,10 +125,10 @@ impl Lexer {
         continue;
       } else if data == ' ' || data == '\t' || data == ',' || data == ';' || data == ']' {
         self.pointer -= 1;
-        self.position.1 -= 1;
-        return Ok(self.create_token(Value::Reference(self.data[start_pos..self.pointer].to_string())));
+        self.position.subtract_column_by(1);
+        return Ok(self.create_token(Literal::Dereference(self.data[start_pos..self.pointer].to_string())));
       } else {
-        return Err(DeserializerError::UnexpectedValue(data, self.position));
+        return Err(DeserializerError::UnexpectedLiteral(data, self.position));
       }
     }
     Err(DeserializerError::UnexpectedTermination(self.position))
@@ -145,7 +138,7 @@ impl Lexer {
     //Previous check
     if let Some(data) = self.data.chars().nth(self.pointer - 2) {
       if data != ' ' && data != '\t' && data != '{' && data != '[' && data != ';' && data != ',' && data != '\r' && data != '\n' {
-        return Err(DeserializerError::UnexpectedValue(data, self.position));
+        return Err(DeserializerError::UnexpectedLiteral(data, self.position));
       }
     }
     let mut start_pos: usize = self.pointer;
@@ -155,9 +148,9 @@ impl Lexer {
         buffer.extend_from_slice(self.data[start_pos..self.pointer - 1].as_bytes());
         let next_char = self.peek(1);
         if next_char != ',' && next_char != ';' && next_char != ' ' && next_char != '\t' && next_char != '\r' && next_char != '\n' && next_char != ']' {
-          return Err(DeserializerError::UnexpectedValue(next_char, (self.position.0, self.position.1 + 1)));
+          return Err(DeserializerError::UnexpectedLiteral(next_char, Position::from((self.position.get_line(), self.position.get_column() + 1))));
         }
-        return Ok(self.create_token(Value::String(String::from_utf8_lossy(&buffer).to_string())));
+        return Ok(self.create_token(Literal::String(String::from_utf8_lossy(&buffer).to_string())));
       } else if data == '\\' {
         match self.peek(1) {
           'n' => {
@@ -200,7 +193,7 @@ impl Lexer {
             return Err(DeserializerError::UnexpectedTermination(self.position));
           },
           other => {
-            return Err(DeserializerError::UnexpectedValue(other, self.position));
+            return Err(DeserializerError::UnexpectedLiteral(other, self.position));
           },
         }
       } else if data == '\n' || data == '\r' {
@@ -216,7 +209,7 @@ impl Lexer {
     //Previous check
     if let Some(data) = self.data.chars().nth(self.pointer - 2) {
       if data != ' ' && data != '\t' && data != '{' && data != '[' && data != ';' && data != ',' && data != '\r' && data != '\n' {
-        return Err(DeserializerError::UnexpectedValue(data, self.position));
+        return Err(DeserializerError::UnexpectedLiteral(data, self.position));
       }
     }
     let mut start_pos: usize = self.pointer;
@@ -226,9 +219,9 @@ impl Lexer {
         buffer.extend_from_slice(self.data[start_pos..self.pointer - 1].as_bytes());
         let next_char = self.peek(1);
         if next_char != ',' && next_char != ';' && next_char != ' ' && next_char != '\t' && next_char != '\r' && next_char != '\n' && next_char != ']' {
-          return Err(DeserializerError::UnexpectedValue(next_char, (self.position.0, self.position.1 + 1)));
+          return Err(DeserializerError::UnexpectedLiteral(next_char, Position::from((self.position.get_line(), self.position.get_column() + 1))));
         }
-        return Ok(self.create_token(Value::String(String::from_utf8_lossy(&buffer).to_string())));
+        return Ok(self.create_token(Literal::String(String::from_utf8_lossy(&buffer).to_string())));
       } else if data == '\\' {
         match self.peek(1) {
           'n' => {
@@ -271,7 +264,7 @@ impl Lexer {
             return Err(DeserializerError::UnexpectedTermination(self.position));
           },
           other => {
-            return Err(DeserializerError::UnexpectedValue(other, self.position));
+            return Err(DeserializerError::UnexpectedLiteral(other, self.position));
           },
         }
       } else if data == '\n' || data == '\r' {
@@ -290,53 +283,53 @@ impl Lexer {
         '/' => {
           if '/' == self.peek(1) {
             self.pointer -= 1;
-            self.position.1 -= 1;
-            return Ok(self.create_token(Value::String(self.data[start_pos..self.pointer].to_string())));
+            self.position.subtract_column_by(1);
+            return Ok(self.create_token(Literal::String(self.data[start_pos..self.pointer].to_string())));
           } else {
             continue;
           }
         },
         ' ' => {
           self.pointer -= 1;
-          self.position.1 -= 1;
-          return Ok(self.create_token(Value::String(self.data[start_pos..self.pointer].to_string())));
+          self.position.subtract_column_by(1);
+          return Ok(self.create_token(Literal::String(self.data[start_pos..self.pointer].to_string())));
         },
         '\t' => {
           self.pointer -= 1;
-          self.position.1 -= 1;
-          return Ok(self.create_token(Value::String(self.data[start_pos..self.pointer].to_string())));
+          self.position.subtract_column_by(1);
+          return Ok(self.create_token(Literal::String(self.data[start_pos..self.pointer].to_string())));
         },
         '\n' => {
           self.pointer -= 1;
-          self.position.1 -= 1;
-          return Ok(self.create_token(Value::String(self.data[start_pos..self.pointer].to_string())));
+          self.position.subtract_column_by(1);
+          return Ok(self.create_token(Literal::String(self.data[start_pos..self.pointer].to_string())));
         },
         '\r' => {
           self.pointer -= 1;
-          self.position.1 -= 1;
-          return Ok(self.create_token(Value::String(self.data[start_pos..self.pointer].to_string())));
+          self.position.subtract_column_by(1);
+          return Ok(self.create_token(Literal::String(self.data[start_pos..self.pointer].to_string())));
         },
         ',' => {
           self.pointer -= 1;
-          self.position.1 -= 1;
-          return Ok(self.create_token(Value::String(self.data[start_pos..self.pointer].to_string())));
+          self.position.subtract_column_by(1);
+          return Ok(self.create_token(Literal::String(self.data[start_pos..self.pointer].to_string())));
         },
         ';' => {
           self.pointer -= 1;
-          self.position.1 -= 1;
-          return Ok(self.create_token(Value::String(self.data[start_pos..self.pointer].to_string())));
+          self.position.subtract_column_by(1);
+          return Ok(self.create_token(Literal::String(self.data[start_pos..self.pointer].to_string())));
         },
         ']' => {
           self.pointer -= 1;
-          self.position.1 -= 1;
-          return Ok(self.create_token(Value::String(self.data[start_pos..self.pointer].to_string())));
+          self.position.subtract_column_by(1);
+          return Ok(self.create_token(Literal::String(self.data[start_pos..self.pointer].to_string())));
         },
         _ => {
           continue;
         },
       }
     }
-    Ok(self.create_token(Value::String(self.data[start_pos..self.pointer].to_string())))
+    Ok(self.create_token(Literal::String(self.data[start_pos..self.pointer].to_string())))
   }
 
   fn process_number(&mut self) -> Result<Token, DeserializerError> {
@@ -348,13 +341,13 @@ impl Lexer {
         return self.process_float_number(start_pos);
       } else if data == ' ' || data == '\t' || data == '\r' || data == '\n' || data == ']' || data == ',' || data == ';' {
         self.pointer -= 1;
-        self.position.1 -= 1;
-        return Ok(self.create_token(Value::UnsignedIntegerNumber((self.data[start_pos..self.pointer]).parse::<u32>().unwrap())));
+        self.position.subtract_column_by(1);
+        return Ok(self.create_token(Literal::UnsignedIntegerNumber((self.data[start_pos..self.pointer]).parse::<u32>().unwrap())));
       } else if data == '/' {
         if '/' == self.peek(1) {
           self.pointer -= 1;
-          self.position.1 -= 1;
-          return Ok(self.create_token(Value::UnsignedIntegerNumber(self.data[start_pos..self.pointer].parse::<u32>().unwrap())));
+          self.position.subtract_column_by(1);
+          return Ok(self.create_token(Literal::UnsignedIntegerNumber(self.data[start_pos..self.pointer].parse::<u32>().unwrap())));
         } else {
           continue;
         }
@@ -363,7 +356,7 @@ impl Lexer {
         return self.process_raw_string();
       }
     }
-    Ok(self.create_token(Value::UnsignedIntegerNumber(self.data[start_pos..self.pointer].parse::<u32>().unwrap())))
+    Ok(self.create_token(Literal::UnsignedIntegerNumber(self.data[start_pos..self.pointer].parse::<u32>().unwrap())))
   }
 
   fn process_signed_number(&mut self) -> Result<Token, DeserializerError> {
@@ -375,13 +368,13 @@ impl Lexer {
         return self.process_float_number(start_pos);
       } else if data == ' ' || data == '\t' || data == '\r' || data == '\n' || data == ']' || data == ',' || data == ';' {
         self.pointer -= 1;
-        self.position.1 -= 1;
-        return Ok(self.create_token(Value::SignedFloatNumber((self.data[start_pos..self.pointer]).parse::<i32>().unwrap())));
+        self.position.subtract_column_by(1);
+        return Ok(self.create_token(Literal::SignedIntegerNumber((self.data[start_pos..self.pointer]).parse::<i32>().unwrap())));
       } else if data == '/' {
         if '/' == self.peek(1) {
           self.pointer -= 1;
-          self.position.1 -= 1;
-          return Ok(self.create_token(Value::SignedFloatNumber(self.data[start_pos..self.pointer].parse::<i32>().unwrap())));
+          self.position.subtract_column_by(1);
+          return Ok(self.create_token(Literal::SignedIntegerNumber(self.data[start_pos..self.pointer].parse::<i32>().unwrap())));
         } else {
           continue;
         }
@@ -390,7 +383,7 @@ impl Lexer {
         return self.process_raw_string();
       }
     }
-    Ok(self.create_token(Value::SignedFloatNumber(self.data[start_pos..self.pointer].parse::<i32>().unwrap())))
+    Ok(self.create_token(Literal::SignedIntegerNumber(self.data[start_pos..self.pointer].parse::<i32>().unwrap())))
   }
 
   fn process_float_number(&mut self, start_pos: usize) -> Result<Token, DeserializerError> {
@@ -399,13 +392,13 @@ impl Lexer {
         continue;
       } else if data == ' ' || data == '\t' || data == '\r' || data == '\n' || data == ']' || data == ',' || data == ';' {
         self.pointer -= 1;
-        self.position.1 -= 1;
-        return Ok(self.create_token(Value::FloatNumber((self.data[start_pos..self.pointer]).parse::<f32>().unwrap())));
+        self.position.subtract_column_by(1);
+        return Ok(self.create_token(Literal::FloatNumber((self.data[start_pos..self.pointer]).parse::<f32>().unwrap())));
       } else if data == '/' {
         if '/' == self.peek(1) {
           self.pointer -= 1;
-          self.position.1 -= 1;
-          return Ok(self.create_token(Value::FloatNumber(self.data[start_pos..self.pointer].parse::<f32>().unwrap())));
+          self.position.subtract_column_by(1);
+          return Ok(self.create_token(Literal::FloatNumber(self.data[start_pos..self.pointer].parse::<f32>().unwrap())));
         } else {
           continue;
         }
@@ -414,7 +407,7 @@ impl Lexer {
         return self.process_raw_string();
       }
     }
-    Ok(self.create_token(Value::FloatNumber(self.data[start_pos..self.pointer].parse::<f32>().unwrap())))
+    Ok(self.create_token(Literal::FloatNumber(self.data[start_pos..self.pointer].parse::<f32>().unwrap())))
   }
 
   fn process_specific_sets(&mut self, sets: u8) -> Result<Token, DeserializerError> {
@@ -444,9 +437,9 @@ impl Lexer {
         }
         let peeked = self.peek(1);
         if peeked == ',' || peeked == ';' || peeked == ' ' || peeked == '\t' || peeked == ']' || peeked == '\r' || peeked == '\n' {
-          Ok(self.create_token(Value::Boolean(true)))
+          Ok(self.create_token(Literal::Boolean(true)))
         } else if peeked == '/' && self.peek(2) == '/' {
-          Ok(self.create_token(Value::Boolean(true)))
+          Ok(self.create_token(Literal::Boolean(true)))
         } else {
           self.move_pointer_to(start_pos);
           self.process_raw_string()
@@ -468,9 +461,9 @@ impl Lexer {
         }
         let peeked = self.peek(1);
         if peeked == ',' || peeked == ';' || peeked == ' ' || peeked == '\t' || peeked == ']' || peeked == '\r' || peeked == '\n' {
-          Ok(self.create_token(Value::Boolean(false)))
+          Ok(self.create_token(Literal::Boolean(false)))
         } else if peeked == '/' && self.peek(2) == '/' {
-          Ok(self.create_token(Value::Boolean(false)))
+          Ok(self.create_token(Literal::Boolean(false)))
         } else {
           self.move_pointer_to(start_pos);
           self.process_raw_string()
@@ -492,9 +485,9 @@ impl Lexer {
         }
         let peeked = self.peek(1);
         if peeked == ',' || peeked == ';' || peeked == ' ' || peeked == '\t' || peeked == ']' || peeked == '\r' || peeked == '\n' {
-          Ok(self.create_token(Value::Void))
+          Ok(self.create_token(Literal::Void))
         } else if peeked == '/' && self.peek(2) == '/' {
-          Ok(self.create_token(Value::Void))
+          Ok(self.create_token(Literal::Void))
         } else {
           self.move_pointer_to(start_pos);
           self.process_raw_string()
@@ -508,7 +501,7 @@ impl Lexer {
     while let Some(data) = self.advance(false) {
       if data == '\n' || data == '\r' {
         self.pointer -= 1;
-        self.position.1 -= 1;
+        self.position.subtract_column_by(1);
         return;
       }
     }
@@ -538,25 +531,25 @@ impl Lexer {
     if !skip_whitespace_and_newline {
       let data = self.data.chars().nth(self.pointer);
       self.move_pointer_by(1);
-      self.position.1 += 1;
+      self.position.add_column_by(1);
       data
     } else {
       loop {
         let data = self.data.chars().nth(self.pointer);
         self.move_pointer_by(1);
-        self.position.1 += 1;
+        self.position.add_column_by(1);
         if let Some(cache) = data {
           if cache == ' ' || cache == '\t' {
             continue;
           } else if cache == '\n' {
-            self.position.0 += 1;
-            self.position.1 = 0;
+            self.position.add_line_by(1);
+            self.position.set_column_to(0);
           } else if cache == '\r' {
             if self.peek(1) == '\n' {
               self.move_pointer_by(1);
             }
-            self.position.0 += 1;
-            self.position.1 = 0;
+            self.position.add_line_by(1);
+            self.position.set_column_to(0);
           } else {
             return Some(cache);
           }
@@ -568,8 +561,8 @@ impl Lexer {
   }
 
   #[inline(always)]
-  fn create_token(&self, value: Value) -> Token {
-    Token::new(value, Position::new(self.position.0, self.position.1))
+  fn create_token(&self, literal: Literal) -> Token {
+    Token::new(literal, self.position)
   }
 
   #[inline(always)]
