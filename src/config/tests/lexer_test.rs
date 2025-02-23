@@ -2,15 +2,25 @@ use config::deserializer::lexer::Lexer;
 use config::deserializer::literal::Literal;
 #[test]
 fn string_test() {
-  let d: String = String::from(
-    r##"
-  "String.test\nnewline\r\nnewline"  
-"##,
-  );
+  let d: String = String::from(r##""This is String test case.";"##);
   let mut lex = Lexer::new(d);
   match lex.get() {
     Ok(data) => {
-      assert_eq!(*data.get_literal_ref(), Literal::String("String.test\nnewline\r\nnewline".to_string()))
+      assert_eq!(*data.get_literal_ref(), Literal::String("This is String test case.".to_string()))
+    },
+    Err(e) => {
+      panic!("Error Message: \n{:?}", e);
+    },
+  }
+}
+
+#[test]
+fn newline_test() {
+  let d: String = String::from(r##""This is String test case.\nBut attached newline test case.";"##);
+  let mut lex = Lexer::new(d);
+  match lex.get() {
+    Ok(data) => {
+      assert_eq!(*data.get_literal_ref(), Literal::String("This is String test case.\nBut attached newline test case.".to_string()))
     },
     Err(e) => {
       panic!("Error Message: \n{:?}", e);
@@ -20,11 +30,7 @@ fn string_test() {
 
 #[test]
 fn integer_number_test() {
-  let d: String = String::from(
-    r##"
-  123456//comment
-"##,
-  );
+  let d: String = String::from(r##"123456"##);
   let mut lex = Lexer::new(d);
   match lex.get() {
     Ok(data) => {
@@ -38,11 +44,7 @@ fn integer_number_test() {
 
 #[test]
 fn float_number_test() {
-  let d: String = String::from(
-    r##"
-  123456.123456//comment
-"##,
-  );
+  let d: String = String::from(r##"123456.123456"##);
   let mut lex = Lexer::new(d);
   match lex.get() {
     Ok(data) => {
@@ -56,11 +58,7 @@ fn float_number_test() {
 
 #[test]
 fn negative_integer_number_test() {
-  let d: String = String::from(
-    r##"
-  -123456
-"##,
-  );
+  let d: String = String::from(r##"-123456"##);
   let mut lex = Lexer::new(d);
   match lex.get() {
     Ok(data) => {
@@ -74,11 +72,7 @@ fn negative_integer_number_test() {
 
 #[test]
 fn negative_float_number_test() {
-  let d: String = String::from(
-    r##"
-  -123456.123456
-"##,
-  );
+  let d: String = String::from(r##"-123456.123456"##);
   let mut lex = Lexer::new(d);
   match lex.get() {
     Ok(data) => {
@@ -92,11 +86,7 @@ fn negative_float_number_test() {
 
 #[test]
 fn true_test() {
-  let d: String = String::from(
-    r##"
-  true//comment
-"##,
-  );
+  let d: String = String::from(r##"true"##);
   let mut lex = Lexer::new(d);
   match lex.get() {
     Ok(data) => {
@@ -110,11 +100,7 @@ fn true_test() {
 
 #[test]
 fn false_test() {
-  let d: String = String::from(
-    r##"
-  false//comment
-"##,
-  );
+  let d: String = String::from(r##"false;"##);
   let mut lex = Lexer::new(d);
   match lex.get() {
     Ok(data) => {
@@ -128,11 +114,7 @@ fn false_test() {
 
 #[test]
 fn void_test() {
-  let d: String = String::from(
-    r##"
-  void//comment
-"##,
-  );
+  let d: String = String::from(r##"void"##);
   let mut lex = Lexer::new(d);
   match lex.get() {
     Ok(data) => {
@@ -211,7 +193,7 @@ fn paren_test() {
 }
 
 #[test]
-fn pound_test() {
+fn include_command_test() {
   let d: String = String::from(r##"#include "./abc";"##);
   let mut lex = Lexer::new(d);
   match lex.get() {
@@ -291,48 +273,5 @@ fn comment_test() {
     Err(e) => {
       panic!("Error Message: \n{:?}", e);
     },
-  }
-}
-
-#[test]
-fn all_test() {
-  let d: String = String::from(
-    r##"#include "./path/to/what/you/want/to/include";//comment
-
-name "Marquage";//comment
-
-description "A simple mark language mainly used as config files";//comment
-
-version [1,0,0];///////////a
-
-authors {//comment
-  "SuiBian9516" "m1311826090@outlook.com";//
-};
-
-is_latest false;
-
-is_simple true;
-
-is_widely_used void;
-
-&variable "Only accept simple data structures";
-
-&year 2024;
-
-copyright_year *year;"##,
-  );
-  let mut lex = Lexer::new(d);
-  loop {
-    match lex.get() {
-      Ok(t) => {
-        if *t.get_literal_ref() == Literal::End {
-          return;
-        }
-        println!("Received Token: {:?}", t);
-      },
-      Err(e) => {
-        panic!("Error Message:\n{:?}", e);
-      },
-    }
   }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "config"
-version.workspace = true
+version = "0.0.1"
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
@@ -9,3 +9,5 @@ rust-version.workspace = true
 
 [dependencies]
 utils = {path = "../utils"}
+
+indexmap = "2.7.1"
