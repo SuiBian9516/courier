@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
 
-use crate::{map::IndexMap, Value};
+use indexmap::IndexMap;
+
+use crate::Value;
 
 use super::{error::DeserializerError, lexer::Lexer, literal::Literal, position::Position, token::Token};
 
@@ -16,8 +18,11 @@ impl Deserializer {
     Self { lexer, state: State::Pending, references: BTreeMap::<String, Value>::new(), pos_cache: Position::new(0, 0) }
   }
 
-  pub fn parse(&mut self) -> Result<IndexMap<String, Value>, DeserializerError> {
-    self.parse_object(false)
+  pub fn parse(mut self) -> Result<Value, DeserializerError> {
+    match self.parse_object(false) {
+      Ok(map) => Ok(Value::Object(map)),
+      Err(e) => Err(e),
+    }
   }
 
   fn parse_object(&mut self, check_brace: bool) -> Result<IndexMap<String, Value>, DeserializerError> {
@@ -63,12 +68,12 @@ impl Deserializer {
               return Err(DeserializerError::InvalidLiteral(literal));
             }
             if literal.is_string() || literal.is_unsigned_int() || literal.is_signed_int() || literal.is_float() || literal.is_boolean() || literal.is_void() {
-              map.add(key_token.get_string_content().unwrap(), literal.into());
+              map.insert(key_token.get_string_content().unwrap(), literal.into());
               self.set_state(State::SemicolonExpected(pos.into()));
               continue;
             } else if literal.is_dereference() {
               if let Some(val) = self.references.get(&literal.get_dereference_content().unwrap()) {
-                map.add(key_token.get_string_content().unwrap(), val.clone());
+                map.insert(key_token.get_string_content().unwrap(), val.clone());
                 self.set_state(State::SemicolonExpected(pos.into()));
                 continue;
               } else {
@@ -79,7 +84,7 @@ impl Deserializer {
               self.set_state(State::ObjectProcessing);
               match self.parse_object(true) {
                 Ok(object) => {
-                  map.add(key_name, Value::Object(object));
+                  map.insert(key_name, Value::Object(object));
                   continue;
                 },
                 Err(e) => {
@@ -91,7 +96,7 @@ impl Deserializer {
               self.set_state(State::ArrayProcessing);
               match self.parse_array(true) {
                 Ok(array) => {
-                  map.add(key_name, Value::Array(array));
+                  map.insert(key_name, Value::Array(array));
                   continue;
                 },
                 Err(e) => {

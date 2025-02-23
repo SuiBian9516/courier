@@ -1,15 +1,14 @@
 use crate::{
   deserializer::{error::DeserializerError, lexer::Lexer, Deserializer},
-  map::IndexMap,
   Value,
 };
 
 pub struct Config;
 
 impl Config {
-  pub fn deserialize(data: String) -> Result<IndexMap<String, Value>, DeserializerError> {
+  pub fn deserialize(data: String) -> Result<Value, DeserializerError> {
     let lexer = Lexer::new(data);
-    let mut deserializer = Deserializer::new(lexer);
+    let deserializer = Deserializer::new(lexer);
     deserializer.parse()
   }
 }

@@ -136,9 +136,11 @@ impl Lexer {
 
   fn process_string_with_double_quote(&mut self) -> Result<Token, DeserializerError> {
     //Previous check
-    if let Some(data) = self.data.chars().nth(self.pointer - 2) {
-      if data != ' ' && data != '\t' && data != '{' && data != '[' && data != ';' && data != ',' && data != '\r' && data != '\n' {
-        return Err(DeserializerError::UnexpectedLiteral(data, self.position));
+    if self.pointer >= 2{
+      if let Some(data) = self.data.chars().nth(self.pointer - 2) {
+        if data != ' ' && data != '\t' && data != '{' && data != '[' && data != ';' && data != ',' && data != '\r' && data != '\n' {
+          return Err(DeserializerError::UnexpectedLiteral(data, self.position));
+        }
       }
     }
     let mut start_pos: usize = self.pointer;
@@ -207,9 +209,11 @@ impl Lexer {
 
   fn process_string_with_single_quote(&mut self) -> Result<Token, DeserializerError> {
     //Previous check
-    if let Some(data) = self.data.chars().nth(self.pointer - 2) {
-      if data != ' ' && data != '\t' && data != '{' && data != '[' && data != ';' && data != ',' && data != '\r' && data != '\n' {
-        return Err(DeserializerError::UnexpectedLiteral(data, self.position));
+    if self.pointer >= 2{
+      if let Some(data) = self.data.chars().nth(self.pointer - 2) {
+        if data != ' ' && data != '\t' && data != '{' && data != '[' && data != ';' && data != ',' && data != '\r' && data != '\n' {
+          return Err(DeserializerError::UnexpectedLiteral(data, self.position));
+        }
       }
     }
     let mut start_pos: usize = self.pointer;
@@ -436,7 +440,7 @@ impl Lexer {
           }
         }
         let peeked = self.peek(1);
-        if peeked == ',' || peeked == ';' || peeked == ' ' || peeked == '\t' || peeked == ']' || peeked == '\r' || peeked == '\n' {
+        if peeked == ',' || peeked == ';' || peeked == ' ' || peeked == '\t' || peeked == ']' || peeked == '\r' || peeked == '\n' || peeked == '\0'{
           Ok(self.create_token(Literal::Boolean(true)))
         } else if peeked == '/' && self.peek(2) == '/' {
           Ok(self.create_token(Literal::Boolean(true)))
@@ -460,7 +464,7 @@ impl Lexer {
           }
         }
         let peeked = self.peek(1);
-        if peeked == ',' || peeked == ';' || peeked == ' ' || peeked == '\t' || peeked == ']' || peeked == '\r' || peeked == '\n' {
+        if peeked == ',' || peeked == ';' || peeked == ' ' || peeked == '\t' || peeked == ']' || peeked == '\r' || peeked == '\n' || peeked == '\0'{
           Ok(self.create_token(Literal::Boolean(false)))
         } else if peeked == '/' && self.peek(2) == '/' {
           Ok(self.create_token(Literal::Boolean(false)))
@@ -484,7 +488,7 @@ impl Lexer {
           }
         }
         let peeked = self.peek(1);
-        if peeked == ',' || peeked == ';' || peeked == ' ' || peeked == '\t' || peeked == ']' || peeked == '\r' || peeked == '\n' {
+        if peeked == ',' || peeked == ';' || peeked == ' ' || peeked == '\t' || peeked == ']' || peeked == '\r' || peeked == '\n' || peeked == '\0'{
           Ok(self.create_token(Literal::Void))
         } else if peeked == '/' && self.peek(2) == '/' {
           Ok(self.create_token(Literal::Void))
@@ -530,15 +534,20 @@ impl Lexer {
     */
     if !skip_whitespace_and_newline {
       let data = self.data.chars().nth(self.pointer);
-      self.move_pointer_by(1);
-      self.position.add_column_by(1);
-      data
+      match data{
+        Some(c) => {
+          self.move_pointer_by(1);
+          self.position.add_column_by(1);
+          Some(c)
+        },
+        None=>None
+      }
     } else {
       loop {
         let data = self.data.chars().nth(self.pointer);
-        self.move_pointer_by(1);
-        self.position.add_column_by(1);
         if let Some(cache) = data {
+          self.move_pointer_by(1);
+          self.position.add_column_by(1);
           if cache == ' ' || cache == '\t' {
             continue;
           } else if cache == '\n' {
