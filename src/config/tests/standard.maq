@@ -1,5 +1,3 @@
-#include "./path/to/what/you/want/to/include";
-
 name "Marquage";
 
 description "A simple mark language mainly used as config files";

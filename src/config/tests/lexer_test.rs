@@ -193,20 +193,6 @@ fn paren_test() {
 }
 
 #[test]
-fn include_command_test() {
-  let d: String = String::from(r##"#include "./abc";"##);
-  let mut lex = Lexer::new(d);
-  match lex.get() {
-    Ok(data) => {
-      assert_eq!(*data.get_literal_ref(), Literal::IncludeCommand("include".to_string(), "./abc".to_string()))
-    },
-    Err(e) => {
-      panic!("Error Message: \n{:?}", e);
-    },
-  }
-}
-
-#[test]
 fn reference_test() {
   let d: String = String::from(r##"&abc;"##);
   let mut lex = Lexer::new(d);

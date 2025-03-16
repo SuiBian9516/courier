@@ -14,7 +14,6 @@ impl Lexer {
   pub fn get(&mut self) -> Result<Token, DeserializerError> {
     if let Some(data) = self.advance(true) {
       match data {
-        '#' => self.process_include_command(),
         '"' => self.process_string_with_double_quote(),
         '\'' => self.process_string_with_single_quote(),
         ';' => Ok(self.create_token(Literal::Semicolon)),
@@ -54,50 +53,6 @@ impl Lexer {
     }
   }
 
-  fn process_include_command(&mut self) -> Result<Token, DeserializerError> {
-    let command_name: [char; 7] = ['i', 'n', 'c', 'l', 'u', 'd', 'e'];
-    for c in command_name {
-      if let Some(data) = self.advance(false) {
-        if data == c {
-          continue;
-        } else {
-          return Err(DeserializerError::UnexpectedLiteral(data, self.position));
-        }
-      } else {
-        return Err(DeserializerError::UnexpectedTermination(self.position));
-      }
-    }
-    if self.peek(1) == ' ' || self.peek(1) == '\t' {
-      self.position.add_column_by(1);
-    } else {
-      return Err(DeserializerError::UnexpectedLiteral(self.peek(1), self.position));
-    }
-    let mut is_parsing: bool = false;
-    let mut start_pos: usize = 0;
-    while let Some(data) = self.advance(false) {
-      if data == '\r' || data == '\n' {
-        return Err(DeserializerError::InvalidNewLine(self.position));
-      } else if data == ' ' || data == '\t' {
-        continue;
-      } else if data == '"' {
-        if is_parsing {
-          return Ok(self.create_token(Literal::IncludeCommand("include".to_string(), self.data[start_pos..self.pointer - 1].to_string())));
-        } else {
-          is_parsing = true;
-          start_pos = self.pointer;
-          continue;
-        }
-      } else {
-        if is_parsing {
-          continue;
-        } else {
-          return Err(DeserializerError::UnexpectedLiteral(data, self.position));
-        }
-      }
-    }
-    Err(DeserializerError::UnexpectedTermination(self.position))
-  }
-
   fn process_reference(&mut self) -> Result<Token, DeserializerError> {
     let start_pos: usize = self.pointer;
     while let Some(data) = self.advance(false) {
@@ -135,14 +90,6 @@ impl Lexer {
   }
 
   fn process_string_with_double_quote(&mut self) -> Result<Token, DeserializerError> {
-    //Previous check
-    if self.pointer >= 2{
-      if let Some(data) = self.data.chars().nth(self.pointer - 2) {
-        if data != ' ' && data != '\t' && data != '{' && data != '[' && data != ';' && data != ',' && data != '\r' && data != '\n' {
-          return Err(DeserializerError::UnexpectedLiteral(data, self.position));
-        }
-      }
-    }
     let mut start_pos: usize = self.pointer;
     let mut buffer = Vec::<u8>::new();
     while let Some(data) = self.advance(false) {
@@ -208,14 +155,6 @@ impl Lexer {
   }
 
   fn process_string_with_single_quote(&mut self) -> Result<Token, DeserializerError> {
-    //Previous check
-    if self.pointer >= 2{
-      if let Some(data) = self.data.chars().nth(self.pointer - 2) {
-        if data != ' ' && data != '\t' && data != '{' && data != '[' && data != ';' && data != ',' && data != '\r' && data != '\n' {
-          return Err(DeserializerError::UnexpectedLiteral(data, self.position));
-        }
-      }
-    }
     let mut start_pos: usize = self.pointer;
     let mut buffer = Vec::<u8>::new();
     while let Some(data) = self.advance(false) {

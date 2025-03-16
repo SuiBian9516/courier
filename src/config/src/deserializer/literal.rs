@@ -4,8 +4,6 @@ use crate::Value;
 pub enum Literal {
   Void,
 
-  IncludeCommand(String, String),
-
   String(String),
 
   Boolean(bool),
