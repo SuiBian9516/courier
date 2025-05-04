@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, ptr::null_mut};
+use std::{marker::PhantomData, ptr::null_mut, fmt::Debug};
 
 pub struct LinkedListNode<T> {
   pub front: *mut LinkedListNode<T>,
@@ -122,6 +122,23 @@ impl<T> LinkedList<T> {
   pub fn is_empty(&self) -> bool {
     self.count() == 0
   }
+
+  pub fn clear(&mut self){
+    let mut current = self.head;
+
+    while !current.is_null(){
+      unsafe {
+        let next = (*current).back;
+        let val = Box::from_raw(current);
+        drop(val);
+        current = next;
+      }
+    }
+
+    self.head = null_mut();
+    self.tail = null_mut();
+    self.length = 0;
+  }
 }
 
 pub struct IntoIter<T>{
@@ -210,5 +227,31 @@ impl<'a, T> IntoIterator for &'a mut LinkedList<T>{
       position: self.head,
       _marker: PhantomData
     }
+  }
+}
+
+impl<T:Debug> Debug for LinkedList<T>{
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    f.debug_list().entries(self.into_iter()).finish()
+  }
+}
+
+impl<T,const N:usize> From<[T;N]> for LinkedList<T>{
+  fn from(value: [T;N]) -> Self {
+    let mut linked_list = Self::new();
+    for i in value{
+      linked_list.push_back(i);
+    }
+    linked_list
+  }
+}
+
+impl<T> From<Vec<T>> for LinkedList<T>{
+  fn from(value: Vec<T>) -> Self {
+    let mut linked_list = Self::new();
+    for i in value{
+      linked_list.push_back(i);
+    }
+    linked_list
   }
 }
