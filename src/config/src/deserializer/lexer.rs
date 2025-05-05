@@ -379,7 +379,7 @@ impl Lexer {
           }
         }
         let peeked = self.peek(1);
-        if peeked == ',' || peeked == ';' || peeked == ' ' || peeked == '\t' || peeked == ']' || peeked == '\r' || peeked == '\n' || peeked == '\0'{
+        if peeked == ',' || peeked == ';' || peeked == ' ' || peeked == '\t' || peeked == ']' || peeked == '\r' || peeked == '\n' || peeked == '\0' {
           Ok(self.create_token(Literal::Boolean(true)))
         } else if peeked == '/' && self.peek(2) == '/' {
           Ok(self.create_token(Literal::Boolean(true)))
@@ -403,7 +403,7 @@ impl Lexer {
           }
         }
         let peeked = self.peek(1);
-        if peeked == ',' || peeked == ';' || peeked == ' ' || peeked == '\t' || peeked == ']' || peeked == '\r' || peeked == '\n' || peeked == '\0'{
+        if peeked == ',' || peeked == ';' || peeked == ' ' || peeked == '\t' || peeked == ']' || peeked == '\r' || peeked == '\n' || peeked == '\0' {
           Ok(self.create_token(Literal::Boolean(false)))
         } else if peeked == '/' && self.peek(2) == '/' {
           Ok(self.create_token(Literal::Boolean(false)))
@@ -427,7 +427,7 @@ impl Lexer {
           }
         }
         let peeked = self.peek(1);
-        if peeked == ',' || peeked == ';' || peeked == ' ' || peeked == '\t' || peeked == ']' || peeked == '\r' || peeked == '\n' || peeked == '\0'{
+        if peeked == ',' || peeked == ';' || peeked == ' ' || peeked == '\t' || peeked == ']' || peeked == '\r' || peeked == '\n' || peeked == '\0' {
           Ok(self.create_token(Literal::Void))
         } else if peeked == '/' && self.peek(2) == '/' {
           Ok(self.create_token(Literal::Void))
@@ -473,13 +473,13 @@ impl Lexer {
     */
     if !skip_whitespace_and_newline {
       let data = self.data.chars().nth(self.pointer);
-      match data{
+      match data {
         Some(c) => {
           self.move_pointer_by(1);
           self.position.add_column_by(1);
           Some(c)
         },
-        None=>None
+        None => None,
       }
     } else {
       loop {
