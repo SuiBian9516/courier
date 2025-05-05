@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, ptr::null_mut, fmt::Debug};
+use std::{fmt::Debug, marker::PhantomData, ptr::null_mut};
 
 pub struct LinkedListNode<T> {
   pub front: *mut LinkedListNode<T>,
@@ -50,7 +50,7 @@ impl<T> LinkedList<T> {
   pub fn push_back(&mut self, element: T) {
     if self.length == 0 {
       let node = Box::new(LinkedListNode::<T>::create_with_element(element));
-      let ptr = Box::into_raw(node);  // 将 Box 转换为原始指针
+      let ptr = Box::into_raw(node);
       self.head = ptr;
       self.tail = ptr;
       self.length += 1;
@@ -123,10 +123,10 @@ impl<T> LinkedList<T> {
     self.count() == 0
   }
 
-  pub fn clear(&mut self){
+  pub fn clear(&mut self) {
     let mut current = self.head;
 
-    while !current.is_null(){
+    while !current.is_null() {
       unsafe {
         let next = (*current).back;
         let val = Box::from_raw(current);
@@ -141,11 +141,11 @@ impl<T> LinkedList<T> {
   }
 }
 
-pub struct IntoIter<T>{
-  inner: LinkedList<T>
+pub struct IntoIter<T> {
+  inner: LinkedList<T>,
 }
 
-impl<T> Iterator for IntoIter<T>{
+impl<T> Iterator for IntoIter<T> {
   type Item = T;
 
   fn next(&mut self) -> Option<Self::Item> {
@@ -153,18 +153,18 @@ impl<T> Iterator for IntoIter<T>{
   }
 }
 
-pub struct Iter<'a,T>{
+pub struct Iter<'a, T> {
   position: *mut LinkedListNode<T>,
-  _marker: PhantomData<&'a T>
+  _marker: PhantomData<&'a T>,
 }
 
-impl<'a,T> Iterator for Iter<'a,T>{
+impl<'a, T> Iterator for Iter<'a, T> {
   type Item = &'a T;
 
   fn next(&mut self) -> Option<Self::Item> {
-    if self.position.is_null(){
+    if self.position.is_null() {
       None
-    }else{
+    } else {
       unsafe {
         let current = &(*self.position).element;
         self.position = (*self.position).back;
@@ -174,18 +174,18 @@ impl<'a,T> Iterator for Iter<'a,T>{
   }
 }
 
-pub struct IterMut<'a,T>{
+pub struct IterMut<'a, T> {
   position: *mut LinkedListNode<T>,
-  _marker: PhantomData<&'a T>
+  _marker: PhantomData<&'a T>,
 }
 
-impl<'a,T> Iterator for IterMut<'a,T>{
+impl<'a, T> Iterator for IterMut<'a, T> {
   type Item = &'a mut T;
 
   fn next(&mut self) -> Option<Self::Item> {
-    if self.position.is_null(){
+    if self.position.is_null() {
       None
-    }else{
+    } else {
       unsafe {
         let current = &mut (*self.position).element;
         self.position = (*self.position).back;
@@ -195,61 +195,53 @@ impl<'a,T> Iterator for IterMut<'a,T>{
   }
 }
 
-impl<T> IntoIterator for LinkedList<T>{
+impl<T> IntoIterator for LinkedList<T> {
   type IntoIter = IntoIter<T>;
   type Item = T;
 
   fn into_iter(self) -> Self::IntoIter {
-    IntoIter {
-      inner: self
-    }
+    IntoIter { inner: self }
   }
 }
 
-impl<'a, T> IntoIterator for &'a LinkedList<T>{
-  type IntoIter = Iter<'a,T>;
+impl<'a, T> IntoIterator for &'a LinkedList<T> {
+  type IntoIter = Iter<'a, T>;
   type Item = &'a T;
 
   fn into_iter(self) -> Self::IntoIter {
-    Iter {
-      position: self.head,
-      _marker: PhantomData
-    }
+    Iter { position: self.head, _marker: PhantomData }
   }
 }
 
-impl<'a, T> IntoIterator for &'a mut LinkedList<T>{
-  type IntoIter = IterMut<'a,T>;
+impl<'a, T> IntoIterator for &'a mut LinkedList<T> {
+  type IntoIter = IterMut<'a, T>;
   type Item = &'a mut T;
 
   fn into_iter(self) -> Self::IntoIter {
-    IterMut {
-      position: self.head,
-      _marker: PhantomData
-    }
+    IterMut { position: self.head, _marker: PhantomData }
   }
 }
 
-impl<T:Debug> Debug for LinkedList<T>{
+impl<T: Debug> Debug for LinkedList<T> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     f.debug_list().entries(self.into_iter()).finish()
   }
 }
 
-impl<T,const N:usize> From<[T;N]> for LinkedList<T>{
-  fn from(value: [T;N]) -> Self {
+impl<T, const N: usize> From<[T; N]> for LinkedList<T> {
+  fn from(value: [T; N]) -> Self {
     let mut linked_list = Self::new();
-    for i in value{
+    for i in value {
       linked_list.push_back(i);
     }
     linked_list
   }
 }
 
-impl<T> From<Vec<T>> for LinkedList<T>{
+impl<T> From<Vec<T>> for LinkedList<T> {
   fn from(value: Vec<T>) -> Self {
     let mut linked_list = Self::new();
-    for i in value{
+    for i in value {
       linked_list.push_back(i);
     }
     linked_list
