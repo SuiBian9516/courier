@@ -1,14 +1,12 @@
 use crate::linked_list::{linked_list, linked_list::LinkedList};
 
-pub struct Queue<T>{
-  inner: LinkedList<T>
+pub struct Queue<T> {
+  inner: LinkedList<T>,
 }
 
 impl<T> Queue<T> {
   pub fn new() -> Self {
-    Self {
-      inner: LinkedList::<T>::new()
-    }
+    Self { inner: LinkedList::<T>::new() }
   }
 
   pub fn enqueue(&mut self, value: T) {
@@ -18,7 +16,7 @@ impl<T> Queue<T> {
   pub fn dequeue(&mut self) -> Option<T> {
     self.inner.pop_front()
   }
-  
+
   pub fn peek(&self) -> Option<&T> {
     self.inner.peek_front()
   }
@@ -67,7 +65,7 @@ impl<'a, T> IntoIterator for &'a mut Queue<T> {
   }
 }
 
-impl<T, const N: usize> From<[T;N]> for Queue<T> {
+impl<T, const N: usize> From<[T; N]> for Queue<T> {
   fn from(array: [T; N]) -> Self {
     let mut queue = Queue::new();
     for item in array {
@@ -87,15 +85,13 @@ impl<T> From<Vec<T>> for Queue<T> {
   }
 }
 
-impl<T:Clone> Clone for Queue<T> {
+impl<T: Clone> Clone for Queue<T> {
   fn clone(&self) -> Self {
-    Self {
-      inner: self.inner.clone()
-    }
+    Self { inner: self.inner.clone() }
   }
 }
 
-impl<T:PartialEq> PartialEq for Queue<T> {
+impl<T: PartialEq> PartialEq for Queue<T> {
   fn eq(&self, other: &Self) -> bool {
     self.inner == other.inner
   }

@@ -32,7 +32,7 @@ impl<T> SinglyLinkedList<T> {
     self.head = ptr;
     self.length += 1;
   }
-  
+
   pub fn pop(&mut self) -> Option<T> {
     if self.length == 0 {
       None
@@ -214,7 +214,7 @@ impl<T: Clone> Clone for SinglyLinkedList<T> {
   }
 }
 
-impl<T:PartialEq> PartialEq for SinglyLinkedList<T> {
+impl<T: PartialEq> PartialEq for SinglyLinkedList<T> {
   fn eq(&self, other: &Self) -> bool {
     if self.count() != other.count() {
       return false;

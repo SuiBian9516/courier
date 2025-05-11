@@ -280,7 +280,7 @@ impl<T> From<Vec<T>> for LinkedList<T> {
   }
 }
 
-impl<T:Clone> Clone for LinkedList<T> {
+impl<T: Clone> Clone for LinkedList<T> {
   fn clone(&self) -> Self {
     let mut new_list = Self::new();
     let mut current = self.head;

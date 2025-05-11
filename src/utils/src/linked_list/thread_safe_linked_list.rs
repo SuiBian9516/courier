@@ -365,7 +365,7 @@ impl<T: PartialEq> PartialEq for ThreadSafeLinkedList<T> {
 
     loop {
       match (self_iter.next(), other_iter.next()) {
-        (Some(a), Some(b)) if a == b => {}
+        (Some(a), Some(b)) if a == b => {},
         (None, None) => break,
         _ => return false,
       }

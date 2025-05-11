@@ -1,91 +1,98 @@
-use crate::linked_list::linked_list::LinkedList;
-use std::sync::{Arc, Mutex};
+use crate::linked_list::thread_safe_linked_list::{self, ThreadSafeLinkedList};
 
 pub struct ThreadSafeQueue<T> {
-    inner: Arc<Mutex<LinkedList<T>>>
+  inner: ThreadSafeLinkedList<T>,
 }
 
 impl<T> ThreadSafeQueue<T> {
-    pub fn new() -> Self {
-        Self {
-            inner: Arc::new(Mutex::new(LinkedList::<T>::new()))
-        }
-    }
+  pub fn new() -> Self {
+    Self { inner: ThreadSafeLinkedList::new() }
+  }
+  pub fn enqueue(&self, value: T) {
+    self.inner.push_back(value);
+  }
 
-    pub fn enqueue(&self, value: T) {
-        let mut list = self.inner.lock().unwrap();
-        list.push_back(value);
-    }
+  pub fn dequeue(&self) -> Option<T> {
+    self.inner.pop_front()
+  }
 
-    pub fn dequeue(&self) -> Option<T> {
-        let mut list = self.inner.lock().unwrap();
-        list.pop_front()
-    }
-    
-    pub fn peek(&self) -> Option<T> 
-    where 
-        T: Clone
-    {
-        let list = self.inner.lock().unwrap();
-        list.peek_front().cloned()
-    }
+  pub fn peek(&self) -> Option<T>
+  where
+    T: Clone,
+  {
+    self.inner.peek_front().cloned()
+  }
 
-    pub fn is_empty(&self) -> bool {
-        let list = self.inner.lock().unwrap();
-        list.is_empty()
-    }
+  pub fn is_empty(&self) -> bool {
+    self.inner.is_empty()
+  }
+  pub fn count(&self) -> usize {
+    self.inner.count()
+  }
 
-    pub fn count(&self) -> usize {
-        let list = self.inner.lock().unwrap();
-        list.count()
-    }
-
-    pub fn clear(&self) {
-        let mut list = self.inner.lock().unwrap();
-        list.clear()
-    }
+  pub fn clear(&self) {
+    self.inner.clear()
+  }
 }
 
-impl<T, const N: usize> From<[T;N]> for ThreadSafeQueue<T> {
-    fn from(array: [T; N]) -> Self {
-        let queue = ThreadSafeQueue::new();
-        for item in array {
-            queue.enqueue(item);
-        }
-        queue
+impl<T> IntoIterator for ThreadSafeQueue<T> {
+  type Item = T;
+  type IntoIter = thread_safe_linked_list::IntoIter<T>;
+
+  fn into_iter(self) -> Self::IntoIter {
+    self.inner.into_iter()
+  }
+}
+
+impl<'a, T> IntoIterator for &'a ThreadSafeQueue<T> {
+  type Item = &'a T;
+  type IntoIter = thread_safe_linked_list::Iter<'a, T>;
+
+  fn into_iter(self) -> Self::IntoIter {
+    (&self.inner).into_iter()
+  }
+}
+
+impl<'a, T> IntoIterator for &'a mut ThreadSafeQueue<T> {
+  type Item = &'a mut T;
+  type IntoIter = thread_safe_linked_list::IterMut<'a, T>;
+
+  fn into_iter(self) -> Self::IntoIter {
+    (&mut self.inner).into_iter()
+  }
+}
+
+impl<T, const N: usize> From<[T; N]> for ThreadSafeQueue<T> {
+  fn from(array: [T; N]) -> Self {
+    let queue = ThreadSafeQueue::new();
+    for item in array {
+      queue.enqueue(item);
     }
+    queue
+  }
 }
 
 impl<T> From<Vec<T>> for ThreadSafeQueue<T> {
-    fn from(vec: Vec<T>) -> Self {
-        let queue = ThreadSafeQueue::new();
-        for item in vec {
-            queue.enqueue(item);
-        }
-        queue
+  fn from(vec: Vec<T>) -> Self {
+    let queue = ThreadSafeQueue::new();
+    for item in vec {
+      queue.enqueue(item);
     }
+    queue
+  }
 }
 
 impl<T: Clone> Clone for ThreadSafeQueue<T> {
-    fn clone(&self) -> Self {
-        let list = self.inner.lock().unwrap();
-        let cloned_list = list.clone();
-        Self {
-            inner: Arc::new(Mutex::new(cloned_list))
-        }
-    }
+  fn clone(&self) -> Self {
+    Self { inner: self.inner.clone() }
+  }
 }
 
-impl<T: PartialEq> PartialEq for ThreadSafeQueue<T> 
+impl<T: PartialEq> PartialEq for ThreadSafeQueue<T>
 where
-    T: Clone
+  T: Clone,
 {
-    fn eq(&self, other: &Self) -> bool {
-        let self_list = self.inner.lock().unwrap();
-        let other_list = other.inner.lock().unwrap();
-        *self_list == *other_list
-    }
+  fn eq(&self, other: &Self) -> bool {
+    self.inner == other.inner
+  }
 }
-
-unsafe impl<T> Send for ThreadSafeQueue<T> {}
-unsafe impl<T> Sync for ThreadSafeQueue<T> {}

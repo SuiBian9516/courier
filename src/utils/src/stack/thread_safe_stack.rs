@@ -1,14 +1,12 @@
 use crate::linked_list::thread_safe_singly_linked_list::{IntoIter, Iter, IterMut, ThreadSafeSinglyLinkedList};
 
 pub struct ThreadSafeStack<T> {
-  inner: ThreadSafeSinglyLinkedList<T>
+  inner: ThreadSafeSinglyLinkedList<T>,
 }
 
 impl<T> ThreadSafeStack<T> {
   pub fn new() -> Self {
-    Self {
-      inner: ThreadSafeSinglyLinkedList::<T>::new()
-    }
+    Self { inner: ThreadSafeSinglyLinkedList::<T>::new() }
   }
 
   pub fn push(&self, value: T) {
@@ -69,9 +67,7 @@ impl<'a, T> IntoIterator for &'a mut ThreadSafeStack<T> {
 
 impl<T> Clone for ThreadSafeStack<T> {
   fn clone(&self) -> Self {
-    Self {
-      inner: self.inner.clone()
-    }
+    Self { inner: self.inner.clone() }
   }
 }
 

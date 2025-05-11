@@ -261,7 +261,7 @@ impl<T> Clone for ThreadSafeSinglyLinkedList<T> {
   }
 }
 
-impl<T:PartialEq> PartialEq for ThreadSafeSinglyLinkedList<T> {
+impl<T: PartialEq> PartialEq for ThreadSafeSinglyLinkedList<T> {
   fn eq(&self, other: &Self) -> bool {
     if self.count() != other.count() {
       return false;
