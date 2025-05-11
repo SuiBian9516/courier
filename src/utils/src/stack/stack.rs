@@ -1,14 +1,12 @@
 use crate::linked_list::singly_linked_list::{IntoIter, Iter, IterMut, SinglyLinkedList};
 
 pub struct Stack<T> {
-  inner: SinglyLinkedList<T>
+  inner: SinglyLinkedList<T>,
 }
 
 impl<T> Stack<T> {
   pub fn new() -> Self {
-    Self {
-      inner: SinglyLinkedList::<T>::new()
-    }
+    Self { inner: SinglyLinkedList::<T>::new() }
   }
 
   pub fn push(&mut self, value: T) {
@@ -74,6 +72,20 @@ impl<T, const N: usize> From<[T; N]> for Stack<T> {
       stack.push(i);
     }
     stack
+  }
+}
+
+impl<T:PartialEq> PartialEq for Stack<T>{
+  fn eq(&self, other: &Self) -> bool {
+    self.inner == other.inner
+  }
+}
+
+impl<T: Clone> Clone for Stack<T>{
+  fn clone(&self) -> Self {
+    Self {
+      inner: self.inner.clone()
+    }
   }
 }
 

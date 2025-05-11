@@ -65,6 +65,12 @@ impl<'a, T> IntoIterator for &'a mut ThreadSafeStack<T> {
   }
 }
 
+impl<T:PartialEq> PartialEq for ThreadSafeStack<T>{
+  fn eq(&self, other: &Self) -> bool {
+    self.inner == other.inner
+  }
+}
+
 impl<T> Clone for ThreadSafeStack<T> {
   fn clone(&self) -> Self {
     Self { inner: self.inner.clone() }
