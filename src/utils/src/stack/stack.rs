@@ -75,17 +75,15 @@ impl<T, const N: usize> From<[T; N]> for Stack<T> {
   }
 }
 
-impl<T:PartialEq> PartialEq for Stack<T>{
+impl<T: PartialEq> PartialEq for Stack<T> {
   fn eq(&self, other: &Self) -> bool {
     self.inner == other.inner
   }
 }
 
-impl<T: Clone> Clone for Stack<T>{
+impl<T: Clone> Clone for Stack<T> {
   fn clone(&self) -> Self {
-    Self {
-      inner: self.inner.clone()
-    }
+    Self { inner: self.inner.clone() }
   }
 }
 
