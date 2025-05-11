@@ -32,6 +32,7 @@ impl<T> SinglyLinkedList<T> {
     self.head = ptr;
     self.length += 1;
   }
+  
   pub fn pop(&mut self) -> Option<T> {
     if self.length == 0 {
       None
@@ -73,6 +74,22 @@ impl<T> SinglyLinkedList<T> {
 
     self.head = null_mut();
     self.length = 0;
+  }
+
+  pub fn peek(&self) -> Option<&T> {
+    if self.head.is_null() {
+      None
+    } else {
+      unsafe { Some(&(*self.head).element) }
+    }
+  }
+
+  pub fn peek_mut(&mut self) -> Option<&mut T> {
+    if self.head.is_null() {
+      None
+    } else {
+      unsafe { Some(&mut (*self.head).element) }
+    }
   }
 }
 
@@ -180,5 +197,39 @@ impl<T> From<Vec<T>> for SinglyLinkedList<T> {
       linked_list.push(i);
     }
     linked_list
+  }
+}
+
+impl<T: Clone> Clone for SinglyLinkedList<T> {
+  fn clone(&self) -> Self {
+    let mut new_list = Self::new();
+    let mut current = self.head;
+    while !current.is_null() {
+      unsafe {
+        new_list.push((*current).element.clone());
+        current = (*current).next;
+      }
+    }
+    new_list
+  }
+}
+
+impl<T:PartialEq> PartialEq for SinglyLinkedList<T> {
+  fn eq(&self, other: &Self) -> bool {
+    if self.count() != other.count() {
+      return false;
+    }
+    let mut current_self = self.head;
+    let mut current_other = other.head;
+    while !current_self.is_null() && !current_other.is_null() {
+      unsafe {
+        if (*current_self).element != (*current_other).element {
+          return false;
+        }
+        current_self = (*current_self).next;
+        current_other = (*current_other).next;
+      }
+    }
+    true
   }
 }

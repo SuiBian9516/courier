@@ -139,6 +139,38 @@ impl<T> LinkedList<T> {
     self.tail = null_mut();
     self.length = 0;
   }
+
+  pub fn peek_front(&self) -> Option<&T> {
+    if self.length == 0 {
+      None
+    } else {
+      unsafe { Some(&(*self.head).element) }
+    }
+  }
+
+  pub fn peek_back(&self) -> Option<&T> {
+    if self.length == 0 {
+      None
+    } else {
+      unsafe { Some(&(*self.tail).element) }
+    }
+  }
+
+  pub fn peek_front_mut(&mut self) -> Option<&mut T> {
+    if self.length == 0 {
+      None
+    } else {
+      unsafe { Some(&mut (*self.head).element) }
+    }
+  }
+
+  pub fn peek_back_mut(&mut self) -> Option<&mut T> {
+    if self.length == 0 {
+      None
+    } else {
+      unsafe { Some(&mut (*self.tail).element) }
+    }
+  }
 }
 
 pub struct IntoIter<T> {
@@ -245,5 +277,39 @@ impl<T> From<Vec<T>> for LinkedList<T> {
       linked_list.push_back(i);
     }
     linked_list
+  }
+}
+
+impl<T:Clone> Clone for LinkedList<T> {
+  fn clone(&self) -> Self {
+    let mut new_list = Self::new();
+    let mut current = self.head;
+    while !current.is_null() {
+      unsafe {
+        new_list.push_back((*current).element.clone());
+        current = (*current).back;
+      }
+    }
+    new_list
+  }
+}
+
+impl<T: PartialEq> PartialEq for LinkedList<T> {
+  fn eq(&self, other: &Self) -> bool {
+    if self.length != other.length {
+      return false;
+    }
+    let mut current_self = self.head;
+    let mut current_other = other.head;
+    while !current_self.is_null() && !current_other.is_null() {
+      unsafe {
+        if (*current_self).element != (*current_other).element {
+          return false;
+        }
+        current_self = (*current_self).back;
+        current_other = (*current_other).back;
+      }
+    }
+    true
   }
 }

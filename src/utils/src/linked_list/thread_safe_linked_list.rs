@@ -177,8 +177,40 @@ impl<T> ThreadSafeLinkedList<T> {
     self.inner.lock().unwrap()
   }
 
-  pub fn clone(&self) -> Self {
-    Self { inner: Arc::clone(&self.inner) }
+  pub fn peek_front(&self) -> Option<&T> {
+    let inner = self.inner.lock().unwrap();
+    if inner.length == 0 {
+      None
+    } else {
+      unsafe { Some(&(*inner.head.unwrap().as_ptr()).element) }
+    }
+  }
+
+  pub fn peek_back(&self) -> Option<&T> {
+    let inner = self.inner.lock().unwrap();
+    if inner.length == 0 {
+      None
+    } else {
+      unsafe { Some(&(*inner.tail.unwrap().as_ptr()).element) }
+    }
+  }
+
+  pub fn peek_front_mut(&self) -> Option<&mut T> {
+    let inner = self.inner.lock().unwrap();
+    if inner.length == 0 {
+      None
+    } else {
+      unsafe { Some(&mut (*inner.head.unwrap().as_ptr()).element) }
+    }
+  }
+
+  pub fn peek_back_mut(&self) -> Option<&mut T> {
+    let inner = self.inner.lock().unwrap();
+    if inner.length == 0 {
+      None
+    } else {
+      unsafe { Some(&mut (*inner.tail.unwrap().as_ptr()).element) }
+    }
   }
 }
 
@@ -199,15 +231,36 @@ pub struct Iter<'a, T> {
   _guard: MutexGuard<'a, LinkedListInner<T>>,
 }
 
-impl<'a, T: Clone> Iterator for Iter<'a, T> {
-  type Item = T;
+impl<'a, T> Iterator for Iter<'a, T> {
+  type Item = &'a T;
 
   fn next(&mut self) -> Option<Self::Item> {
     if let Some(ptr) = self.current {
       unsafe {
         let current = &(*ptr.as_ptr());
         self.current = current.back;
-        Some(current.element.clone())
+        Some(&current.element)
+      }
+    } else {
+      None
+    }
+  }
+}
+
+pub struct IterMut<'a, T> {
+  current: Option<NonNull<ThreadSafeLinkedListNode<T>>>,
+  _guard: MutexGuard<'a, LinkedListInner<T>>,
+}
+
+impl<'a, T> Iterator for IterMut<'a, T> {
+  type Item = &'a mut T;
+
+  fn next(&mut self) -> Option<Self::Item> {
+    if let Some(ptr) = self.current {
+      unsafe {
+        let current = &mut (*ptr.as_ptr());
+        self.current = current.back;
+        Some(&mut current.element)
       }
     } else {
       None
@@ -224,9 +277,9 @@ impl<T> IntoIterator for ThreadSafeLinkedList<T> {
   }
 }
 
-impl<'a, T: Clone> IntoIterator for &'a ThreadSafeLinkedList<T> {
+impl<'a, T> IntoIterator for &'a ThreadSafeLinkedList<T> {
   type IntoIter = Iter<'a, T>;
-  type Item = T;
+  type Item = &'a T;
 
   fn into_iter(self) -> Self::IntoIter {
     let guard = self.lock_inner();
@@ -236,10 +289,21 @@ impl<'a, T: Clone> IntoIterator for &'a ThreadSafeLinkedList<T> {
   }
 }
 
-impl<T: Debug + Clone> Debug for ThreadSafeLinkedList<T> {
+impl<'a, T> IntoIterator for &'a mut ThreadSafeLinkedList<T> {
+  type IntoIter = IterMut<'a, T>;
+  type Item = &'a mut T;
+
+  fn into_iter(self) -> Self::IntoIter {
+    let guard = self.lock_inner();
+    let current = guard.head;
+
+    IterMut { current, _guard: guard }
+  }
+}
+
+impl<T: Debug> Debug for ThreadSafeLinkedList<T> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    let items: Vec<T> = self.into_iter().collect();
-    f.debug_list().entries(items).finish()
+    f.debug_list().entries(self.into_iter()).finish()
   }
 }
 
@@ -281,6 +345,33 @@ impl<T> Drop for ThreadSafeLinkedList<T> {
       inner.tail = None;
       inner.length = 0;
     }
+  }
+}
+
+impl<T> Clone for ThreadSafeLinkedList<T> {
+  fn clone(&self) -> Self {
+    Self { inner: Arc::clone(&self.inner) }
+  }
+}
+
+impl<T: PartialEq> PartialEq for ThreadSafeLinkedList<T> {
+  fn eq(&self, other: &Self) -> bool {
+    if self.count() != other.count() {
+      return false;
+    }
+
+    let mut self_iter = self.into_iter();
+    let mut other_iter = other.into_iter();
+
+    loop {
+      match (self_iter.next(), other_iter.next()) {
+        (Some(a), Some(b)) if a == b => {}
+        (None, None) => break,
+        _ => return false,
+      }
+    }
+
+    true
   }
 }
 
