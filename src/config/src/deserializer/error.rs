@@ -31,3 +31,5 @@ impl Display for DeserializerError {
     }
   }
 }
+
+impl std::error::Error for DeserializerError {}

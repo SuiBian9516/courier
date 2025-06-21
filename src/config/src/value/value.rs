@@ -2,15 +2,29 @@ use std::fmt::Display;
 
 use indexmap::IndexMap;
 
+use crate::map::{ArrayImpl, ObjectImpl};
+
 use super::index::Index;
 
+use paste::paste;
+
+/// Values that represent data structure in `Marquage`
+/// 
+/// |[`Value`]|Data Structure|
+/// |:-:|:-:|
+/// |Void|void|
+/// |String|"string"<br>string<br>'string'|
+/// |Boolean|true<br>false|
+/// |FloatNumber|0.1<br>-0.1|
+/// |UnsignedIntegerNumber|1|
+/// |SignedIntegerNumber|-1|
+/// |Object|{}|
+/// |Array|[]|
 #[derive(Debug, PartialEq, Clone)]
 pub enum Value {
   Void,
 
-  IncludeCommand(String, String),
-
-  String(String),
+  String(String, StringType),
 
   Boolean(bool),
 
@@ -18,9 +32,20 @@ pub enum Value {
   UnsignedIntegerNumber(u32),
   SignedIntegerNumber(i32),
 
-  Object(IndexMap<String, Value>),
+  Object(ObjectImpl),
 
-  Array(Vec<Value>),
+  Array(ArrayImpl),
+}
+
+/// A string type indicator
+#[derive(Debug, PartialEq, Clone)]
+pub enum StringType {
+  /// Indicate a double-quoted format
+  DoubleQuoted,
+  /// Indicate a single-quoted format
+  SingleQuoted,
+  /// Indicate a raw format
+  Raw,
 }
 
 impl<T> std::ops::Index<T> for Value
@@ -46,6 +71,96 @@ where
       None => {
         panic!("No such element indexed by {}", index)
       },
+    }
+  }
+}
+
+impl std::fmt::Display for Value {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      Self::Array(_) => write!(f, "Array"),
+      Self::Object(_) => write!(f, "Object"),
+      Self::String(string, _) => write!(f, "String [{}]", string),
+      Self::UnsignedIntegerNumber(n) => write!(f, "UnsignedIntegerNumber [{}]", n),
+      Self::SignedIntegerNumber(n) => write!(f, "SignedIntegerNumber [{}]", n),
+      Self::FloatNumber(n) => write!(f, "FloatNumber [{}]", n),
+      Self::Boolean(b) => write!(f, "Boolean [{}]", b),
+      Self::Void => write!(f, "Void"),
+    }
+  }
+}
+
+macro_rules! impl_enum_methods {
+  ($name:ident, $variant:ident, $ret:ty) => {
+    paste! {
+        pub fn [<is_ $name>](&self) -> bool {
+            matches!(self, Self::$variant(_))
+        }
+
+        pub fn [<as_ $name _ref>](&self) -> Option<&$ret> {
+            match self {
+                Self::$variant(obj) => Some(obj),
+                _ => None,
+            }
+        }
+
+        pub fn [<as_ $name _mut>](&mut self) -> Option<&mut $ret> {
+            match self {
+                Self::$variant(obj) => Some(obj),
+                _ => None,
+            }
+        }
+
+        pub fn [<as_ $name>](self) -> Option<$ret> {
+            match self {
+                Self::$variant(obj) => Some(obj),
+                _ => None,
+            }
+        }
+    }
+  };
+}
+
+impl Value {
+  impl_enum_methods!(object, Object, IndexMap<String,Value>);
+  impl_enum_methods!(array, Array, Vec<Value>);
+  impl_enum_methods!(boolean, Boolean, bool);
+  impl_enum_methods!(unsigned_number, UnsignedIntegerNumber, u32);
+  impl_enum_methods!(signed_number, SignedIntegerNumber, i32);
+  impl_enum_methods!(float_number, FloatNumber, f32);
+
+  pub fn is_void(&self) -> bool {
+    match self {
+      Self::Void => true,
+      _ => false,
+    }
+  }
+
+  pub fn is_string(&self) -> bool {
+    match self {
+      Self::String(..) => true,
+      _ => false,
+    }
+  }
+
+  pub fn as_string_ref(&self) -> Option<&String> {
+    match self {
+      Self::String(s, _) => Some(s),
+      _ => None,
+    }
+  }
+
+  pub fn as_string_mut(&mut self) -> Option<&mut String> {
+    match self {
+      Self::String(s, _) => Some(s),
+      _ => None,
+    }
+  }
+
+  pub fn as_string(self) -> Option<String> {
+    match self {
+      Self::String(s, _) => Some(s),
+      _ => None,
     }
   }
 }

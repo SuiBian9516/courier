@@ -1,11 +1,26 @@
 use std::collections::BTreeMap;
 
-use indexmap::IndexMap;
-
-use crate::Value;
+use crate::{
+  map::{ArrayImpl, ObjectImpl},
+  value::Value,
+};
 
 use super::{error::DeserializerError, lexer::Lexer, literal::Literal, position::Position, token::Token};
 
+/// Tool struct helping parse data
+/// 
+/// # Example
+/// ```rust
+/// # use config::deserializer::lexer::Lexer;
+/// # use config::deserializer::Deserializer;
+/// 
+/// let data = r###"hello world;"###.to_string();
+/// let lexer = Lexer::new(data);
+/// let deserializer = Deserializer::new(lexer);
+/// let value = deserializer.parse().unwrap();
+/// 
+/// assert_eq!(value["hello"].as_string_ref().unwrap().as_str(), "world");
+/// ```
 pub struct Deserializer {
   lexer: Lexer,
   state: State,
@@ -14,10 +29,12 @@ pub struct Deserializer {
 }
 
 impl Deserializer {
+  /// Create a new instance
   pub fn new(lexer: Lexer) -> Self {
     Self { lexer, state: State::Pending, references: BTreeMap::<String, Value>::new(), pos_cache: Position::new(0, 0) }
   }
 
+  /// Parse data from [`Lexer`]
   pub fn parse(mut self) -> Result<Value, DeserializerError> {
     match self.parse_object(false) {
       Ok(map) => Ok(Value::Object(map)),
@@ -25,8 +42,8 @@ impl Deserializer {
     }
   }
 
-  fn parse_object(&mut self, check_brace: bool) -> Result<IndexMap<String, Value>, DeserializerError> {
-    let mut map: IndexMap<String, Value> = IndexMap::<String, Value>::new();
+  fn parse_object(&mut self, check_brace: bool) -> Result<ObjectImpl, DeserializerError> {
+    let mut map: ObjectImpl = ObjectImpl::new();
     loop {
       let token: Result<Token, DeserializerError> = self.lexer.get();
       match token {
@@ -169,8 +186,8 @@ impl Deserializer {
     Ok(map)
   }
 
-  fn parse_array(&mut self, check_semicolon: bool) -> Result<Vec<Value>, DeserializerError> {
-    let mut map = Vec::<Value>::new();
+  fn parse_array(&mut self, check_semicolon: bool) -> Result<ArrayImpl, DeserializerError> {
+    let mut map: ArrayImpl = ArrayImpl::new();
     loop {
       let token: Result<Token, DeserializerError> = self.lexer.get();
       match token {

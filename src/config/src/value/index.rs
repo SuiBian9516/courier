@@ -1,5 +1,6 @@
-use crate::Value;
+use crate::value::Value;
 
+/// Index data from object or array
 pub trait Index {
   fn index_into<'a>(&self, val: &'a Value) -> Option<&'a Value>;
   fn index_into_mut<'a>(&self, val: &'a mut Value) -> Option<&'a mut Value>;

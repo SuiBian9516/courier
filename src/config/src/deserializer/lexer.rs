@@ -1,3 +1,5 @@
+use crate::value::StringType;
+
 use super::{error::DeserializerError, literal::Literal, position::Position, token::Token};
 
 pub struct Lexer {
@@ -99,7 +101,7 @@ impl Lexer {
         if next_char != ',' && next_char != ';' && next_char != ' ' && next_char != '\t' && next_char != '\r' && next_char != '\n' && next_char != ']' {
           return Err(DeserializerError::UnexpectedLiteral(next_char, Position::from((self.position.get_line(), self.position.get_column() + 1))));
         }
-        return Ok(self.create_token(Literal::String(String::from_utf8_lossy(&buffer).to_string())));
+        return Ok(self.create_token(Literal::String(String::from_utf8_lossy(&buffer).to_string(), StringType::DoubleQuoted)));
       } else if data == '\\' {
         match self.peek(1) {
           'n' => {
@@ -164,7 +166,7 @@ impl Lexer {
         if next_char != ',' && next_char != ';' && next_char != ' ' && next_char != '\t' && next_char != '\r' && next_char != '\n' && next_char != ']' {
           return Err(DeserializerError::UnexpectedLiteral(next_char, Position::from((self.position.get_line(), self.position.get_column() + 1))));
         }
-        return Ok(self.create_token(Literal::String(String::from_utf8_lossy(&buffer).to_string())));
+        return Ok(self.create_token(Literal::String(String::from_utf8_lossy(&buffer).to_string(), StringType::SingleQuoted)));
       } else if data == '\\' {
         match self.peek(1) {
           'n' => {
@@ -227,7 +229,7 @@ impl Lexer {
           if '/' == self.peek(1) {
             self.pointer -= 1;
             self.position.subtract_column_by(1);
-            return Ok(self.create_token(Literal::String(self.data[start_pos..self.pointer].to_string())));
+            return Ok(self.create_token(Literal::String(self.data[start_pos..self.pointer].to_string(), StringType::Raw)));
           } else {
             continue;
           }
@@ -235,44 +237,44 @@ impl Lexer {
         ' ' => {
           self.pointer -= 1;
           self.position.subtract_column_by(1);
-          return Ok(self.create_token(Literal::String(self.data[start_pos..self.pointer].to_string())));
+          return Ok(self.create_token(Literal::String(self.data[start_pos..self.pointer].to_string(), StringType::Raw)));
         },
         '\t' => {
           self.pointer -= 1;
           self.position.subtract_column_by(1);
-          return Ok(self.create_token(Literal::String(self.data[start_pos..self.pointer].to_string())));
+          return Ok(self.create_token(Literal::String(self.data[start_pos..self.pointer].to_string(), StringType::Raw)));
         },
         '\n' => {
           self.pointer -= 1;
           self.position.subtract_column_by(1);
-          return Ok(self.create_token(Literal::String(self.data[start_pos..self.pointer].to_string())));
+          return Ok(self.create_token(Literal::String(self.data[start_pos..self.pointer].to_string(), StringType::Raw)));
         },
         '\r' => {
           self.pointer -= 1;
           self.position.subtract_column_by(1);
-          return Ok(self.create_token(Literal::String(self.data[start_pos..self.pointer].to_string())));
+          return Ok(self.create_token(Literal::String(self.data[start_pos..self.pointer].to_string(), StringType::Raw)));
         },
         ',' => {
           self.pointer -= 1;
           self.position.subtract_column_by(1);
-          return Ok(self.create_token(Literal::String(self.data[start_pos..self.pointer].to_string())));
+          return Ok(self.create_token(Literal::String(self.data[start_pos..self.pointer].to_string(), StringType::Raw)));
         },
         ';' => {
           self.pointer -= 1;
           self.position.subtract_column_by(1);
-          return Ok(self.create_token(Literal::String(self.data[start_pos..self.pointer].to_string())));
+          return Ok(self.create_token(Literal::String(self.data[start_pos..self.pointer].to_string(), StringType::Raw)));
         },
         ']' => {
           self.pointer -= 1;
           self.position.subtract_column_by(1);
-          return Ok(self.create_token(Literal::String(self.data[start_pos..self.pointer].to_string())));
+          return Ok(self.create_token(Literal::String(self.data[start_pos..self.pointer].to_string(), StringType::Raw)));
         },
         _ => {
           continue;
         },
       }
     }
-    Ok(self.create_token(Literal::String(self.data[start_pos..self.pointer].to_string())))
+    Ok(self.create_token(Literal::String(self.data[start_pos..self.pointer].to_string(), StringType::Raw)))
   }
 
   fn process_number(&mut self) -> Result<Token, DeserializerError> {

@@ -5,9 +5,15 @@ edition.workspace = true
 license.workspace = true
 authors.workspace = true
 rust-version.workspace = true
+build = "build.rs"
 
 [dependencies]
-# Main wrapper
-courier-main-wrapper = { git = "https://github.com/Atomovera/courier-main-wrapper.git" }
+server = {path = "../server"}
+utils = {path = "../utils"}
+config = {path = "../config"}
+macros ={ path = "../macros" }
 
 libc.workspace = true
+
+[build-dependencies]
+git2 = "0.18"

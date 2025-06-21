@@ -1,10 +1,10 @@
-use crate::Value;
+use crate::value::{StringType, Value};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Literal {
   Void,
 
-  String(String),
+  String(String, StringType),
 
   Boolean(bool),
 
@@ -42,13 +42,13 @@ impl Literal {
 
   pub fn is_string(&self) -> bool {
     match self {
-      Literal::String(_) => true,
+      Literal::String(..) => true,
       _ => false,
     }
   }
 
   pub fn get_string_content(&self) -> Option<String> {
-    if let Self::String(content) = self {
+    if let Self::String(content, _) = self {
       Some(content.to_string())
     } else {
       None
@@ -187,13 +187,13 @@ impl Literal {
 impl Into<Value> for Literal {
   fn into(self) -> Value {
     match self {
-      Self::String(content) => Value::String(content),
+      Self::String(content, ty) => Value::String(content, ty),
       Self::UnsignedIntegerNumber(content) => Value::UnsignedIntegerNumber(content),
       Self::SignedIntegerNumber(content) => Value::SignedIntegerNumber(content),
       Self::FloatNumber(content) => Value::FloatNumber(content),
       Self::Boolean(content) => Value::Boolean(content),
       Self::Void => Value::Void,
-      _ => Value::String(String::from("")),
+      _ => Value::String(String::from(""), StringType::DoubleQuoted),
     }
   }
 }
