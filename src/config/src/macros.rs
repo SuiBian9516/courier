@@ -1,6 +1,6 @@
 #[macro_export]
 /// Help create Value instance quickly
-/// 
+///
 /// # Example
 /// ```no_run
 /// config! {

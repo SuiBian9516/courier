@@ -63,29 +63,24 @@ impl<'a> Serializable for &'a str {
   }
 }
 
-impl<T> Serializable for IndexMap<String, T> where T: Serializable{
+impl<T> Serializable for IndexMap<String, T>
+where
+  T: Serializable,
+{
   fn serialize(&self) -> Value {
-    Value::Object(self.iter().map(|(k, v)|{
-      (k.to_owned(), v.serialize())
-    }).collect())
+    Value::Object(self.iter().map(|(k, v)| (k.to_owned(), v.serialize())).collect())
   }
 }
 
-impl<T:Serializable> Serializable for Vec<T>{
+impl<T: Serializable> Serializable for Vec<T> {
   fn serialize(&self) -> Value {
-    Value::Array(self.iter().map(|k|{
-      k.serialize()
-    }).collect())
+    Value::Array(self.iter().map(|k| k.serialize()).collect())
   }
 }
 
-impl<T: Serializable> Serializable for Option<T>{
+impl<T: Serializable> Serializable for Option<T> {
   fn serialize(&self) -> Value {
-    if let Some(val) = self{
-      val.serialize()
-    }else{
-      Value::Void
-    }
+    if let Some(val) = self { val.serialize() } else { Value::Void }
   }
 }
 
@@ -95,7 +90,7 @@ impl Serializable for () {
   }
 }
 
-impl<T: Serializable> Serializable for Box<T>{
+impl<T: Serializable> Serializable for Box<T> {
   fn serialize(&self) -> Value {
     self.as_ref().serialize()
   }

@@ -5,4 +5,11 @@
 <footer>
 
 # `type` includes:
-# feat, fix, doc, style, refactor, test, opt
+# feat: When new features added
+# fix: When bugs fixed
+# docs: When docs changed
+# style: When code styles changed
+# refactor: When no changes but implementation made
+# test: When test case added
+# build: When build system changed
+# chore: When other changes made

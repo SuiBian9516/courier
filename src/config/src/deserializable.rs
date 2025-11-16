@@ -67,16 +67,16 @@ impl Deserializable for () {
   fn deserialize(v: &Value) -> Result<Self, DeserializableError> {
     match v {
       Value::Void => Ok(()),
-      _ => Err(DeserializableError::UnmatchedType("()"))
+      _ => Err(DeserializableError::UnmatchedType("()")),
     }
   }
 }
 
-impl Deserializable for String{
+impl Deserializable for String {
   fn deserialize(v: &Value) -> Result<Self, DeserializableError> {
-    match v{
-      Value::String(data,_ ) => Ok(data.clone()),
-      _ => Err(DeserializableError::UnmatchedType("string"))
+    match v {
+      Value::String(data, _) => Ok(data.clone()),
+      _ => Err(DeserializableError::UnmatchedType("string")),
     }
   }
 }
@@ -90,43 +90,45 @@ impl<T: Deserializable> Deserializable for Vec<T> {
   }
 }
 
-impl<T: Deserializable> Deserializable for IndexMap<String, T>{
+impl<T: Deserializable> Deserializable for IndexMap<String, T> {
   fn deserialize(v: &Value) -> Result<Self, DeserializableError> {
     match v {
-      Value::Object(obj) => obj.clone().into_iter().map(|(k, val)|{
-        match T::deserialize(&val){
+      Value::Object(obj) => obj
+        .clone()
+        .into_iter()
+        .map(|(k, val)| match T::deserialize(&val) {
           Ok(val) => Ok((k, val)),
-          Err(e) => Err(e)
-        }
-      }).collect(),
-      _ => Err(DeserializableError::UnmatchedType("map"))
+          Err(e) => Err(e),
+        })
+        .collect(),
+      _ => Err(DeserializableError::UnmatchedType("map")),
     }
   }
 }
 
-impl<T: Deserializable> Deserializable for Option<T>{
+impl<T: Deserializable> Deserializable for Option<T> {
   fn deserialize(v: &Value) -> Result<Self, DeserializableError> {
-    if let Value::Void = v{
+    if let Value::Void = v {
       return Ok(None);
     }
 
-    match T::deserialize(v){
+    match T::deserialize(v) {
       Ok(val) => Ok(Some(val)),
-      Err(e) => Err(e)
+      Err(e) => Err(e),
     }
   }
 }
 
-impl<T: Deserializable> Deserializable for Box<T>{
+impl<T: Deserializable> Deserializable for Box<T> {
   fn deserialize(v: &Value) -> Result<Self, DeserializableError> {
-    match T::deserialize(v){
+    match T::deserialize(v) {
       Ok(val) => Ok(Box::new(val)),
-      Err(e) => Err(e)
+      Err(e) => Err(e),
     }
   }
 }
 
-impl Deserializable for Value{
+impl Deserializable for Value {
   fn deserialize(v: &Value) -> Result<Self, DeserializableError> {
     Ok(v.clone())
   }
@@ -139,7 +141,7 @@ pub enum DeserializableError {
   MissingField(&'static str),
   ParsingError(DeserializerError),
   UnmatchedValue(&'static str),
-  ConvertError(&'static str, &'static str)
+  ConvertError(&'static str, &'static str),
 }
 
 impl std::fmt::Display for DeserializableError {
@@ -149,8 +151,8 @@ impl std::fmt::Display for DeserializableError {
       Self::UnmatchedType(name) => write!(f, "Unmatched type, but expected {}", name),
       Self::MissingField(name) => write!(f, "Missing field: {}", name),
       Self::ParsingError(e) => write!(f, "Parsing Error: {}", e),
-      Self::UnmatchedValue(v) => write!(f, "Expecting {}, but received others",v),
-      Self::ConvertError(from, to) => write!(f, "Failed to convert number from {} to {}", from, to)
+      Self::UnmatchedValue(v) => write!(f, "Expecting {}, but received others", v),
+      Self::ConvertError(from, to) => write!(f, "Failed to convert number from {} to {}", from, to),
     }
   }
 }

@@ -1,5 +1,7 @@
-use crate::{error::LoggerError, level::Level};
+use crate::record::Record;
 
 pub trait Transport: Send {
-  fn write(&self, level: Level, message: &str) -> Result<(), LoggerError>;
+  fn write(&self, record: &Record);
+
+  fn writeln(&self, record: &Record);
 }

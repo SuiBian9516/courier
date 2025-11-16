@@ -1,20 +1,40 @@
-use std::io::{stdout, Write};
+use std::io::{IsTerminal, Write};
 
-use crate::transport::Transport;
+use chrono::DateTime;
 
-pub struct ConsoleTransport;
+use crate::{level::Level, record::Record, transport::Transport};
+
+pub struct ConsoleTransport {
+  level: Level,
+}
 
 impl Transport for ConsoleTransport {
-  fn write(&self, level: crate::level::Level, message: &str) -> Result<(), crate::error::LoggerError> {
-    match stdout().lock().write(format!("[{}] {}", level.to_string(), message).as_bytes()) {
-      Ok(_) => Ok(()),
-      Err(e) => Err(crate::error::LoggerError::SystemError(e)),
+  fn write(&self, record: &Record) {
+    let mut stdout = std::io::stdout();
+    if stdout.is_terminal() {
+      if record.level > self.level {
+        return;
+      }
+      let content = format!("[{}][{}][{}] {}", DateTime::from_timestamp(record.timestamp, 0).unwrap().format("%Y-%m-%d %H:%M:%S").to_string(), record.level, record.get_namespace(), record.get_message());
+      stdout.write(content.as_bytes()).unwrap();
+      stdout.flush().unwrap();
+    }
+  }
+
+  fn writeln(&self, record: &Record) {
+    let mut stdout = std::io::stdout();
+    if stdout.is_terminal() {
+      if record.level > self.level {
+        return;
+      }
+      let content = format!("{} [{}][{}] {}\n", DateTime::from_timestamp(record.timestamp, 0).unwrap().format("%Y-%m-%d %H:%M:%S").to_string(), record.level, record.get_namespace(), record.get_message());
+      stdout.write(content.as_bytes()).unwrap();
     }
   }
 }
 
 impl ConsoleTransport {
-  pub fn new() -> Box<Self> {
-    Box::new(Self)
+  pub fn new(level: Level) -> Self {
+    Self { level }
   }
 }

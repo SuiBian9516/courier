@@ -458,11 +458,7 @@ impl Lexer {
       It behaves like `advance` method, but do not move pointer
       and return exact data even if it meets end.
     */
-    if let Some(data) = self.data.chars().nth(self.pointer + (count - 1)) {
-      data
-    } else {
-      '\0'
-    }
+    if let Some(data) = self.data.chars().nth(self.pointer + (count - 1)) { data } else { '\0' }
   }
 
   #[inline]

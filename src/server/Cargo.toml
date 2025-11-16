@@ -1,5 +1,5 @@
 [package]
-name = "utils"
+name = "server"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -8,3 +8,6 @@ description.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+logger = {path = "../logger"}
+config = {path = "../config"}
+macros = {path = "../macros"}

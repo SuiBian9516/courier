@@ -1,15 +1,17 @@
 use std::num::NonZeroUsize;
 
 use crate::{
-  map::{ArrayImpl, ObjectImpl}, serializer::formatter::NativeFormatter, value::{StringType, Value}
+  map::{ArrayImpl, ObjectImpl},
+  serializer::formatter::NativeFormatter,
+  value::{StringType, Value},
 };
 
 use super::{error::SerializerError, formatter::Formatter};
 
 /// Tool struct helping stringify data
-/// 
+///
 /// # Example
-/// 
+///
 pub struct Serializer {
   buffer: Vec<u8>,
 }
@@ -20,9 +22,9 @@ impl Serializer {
   }
 
   pub fn stringify(mut self, data: Value, formatter: Option<Box<dyn Formatter>>) -> Result<String, SerializerError> {
-    let format = match formatter{
+    let format = match formatter {
       Some(f) => f,
-      None => Box::new(NativeFormatter::new(2, true, true,NonZeroUsize::new(1).unwrap(),1))
+      None => Box::new(NativeFormatter::new(2, true, true, NonZeroUsize::new(1).unwrap(), 1)),
     };
     match data {
       Value::Object(obj) => {
@@ -162,8 +164,8 @@ impl Serializer {
     self.buffer.push(b',');
   }
 
-  fn try_write_newline(&mut self,data: Option<u8>) {
-    if data.is_some(){
+  fn try_write_newline(&mut self, data: Option<u8>) {
+    if data.is_some() {
       self.buffer.push(data.unwrap());
     }
   }
@@ -172,8 +174,8 @@ impl Serializer {
     self.buffer.extend_from_slice(raw);
   }
 
-  fn try_write_raw(&mut self, raw: Option<Vec<u8>>){
-    if raw.is_some(){
+  fn try_write_raw(&mut self, raw: Option<Vec<u8>>) {
+    if raw.is_some() {
       self.buffer.extend_from_slice(&raw.unwrap());
     }
   }

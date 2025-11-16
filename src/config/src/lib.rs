@@ -1,4 +1,3 @@
-//! # The Config Library for Courier
 //! Config Library have the ability to handle dedicated config file format.
 //! It offers serialization and deserialization methods to operate config file.
 //!
@@ -21,14 +20,14 @@
 //!
 mod config;
 mod deserializable;
-mod serializable;
 pub mod deserializer;
 pub mod map;
+mod serializable;
 pub mod serializer;
 pub mod value;
 #[macro_use]
 mod macros;
 
 pub use config::Config;
-pub use serializable::Serializable;
 pub use deserializable::{Deserializable, DeserializableError};
+pub use serializable::Serializable;

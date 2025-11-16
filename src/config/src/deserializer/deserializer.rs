@@ -8,17 +8,17 @@ use crate::{
 use super::{error::DeserializerError, lexer::Lexer, literal::Literal, position::Position, token::Token};
 
 /// Tool struct helping parse data
-/// 
+///
 /// # Example
 /// ```rust
 /// # use config::deserializer::lexer::Lexer;
 /// # use config::deserializer::Deserializer;
-/// 
+///
 /// let data = r###"hello world;"###.to_string();
 /// let lexer = Lexer::new(data);
 /// let deserializer = Deserializer::new(lexer);
 /// let value = deserializer.parse().unwrap();
-/// 
+///
 /// assert_eq!(value["hello"].as_string_ref().unwrap().as_str(), "world");
 /// ```
 pub struct Deserializer {

@@ -9,7 +9,7 @@ use super::index::Index;
 use paste::paste;
 
 /// Values that represent data structure in `Marquage`
-/// 
+///
 /// |[`Value`]|Data Structure|
 /// |:-:|:-:|
 /// |Void|void|
@@ -71,21 +71,6 @@ where
       None => {
         panic!("No such element indexed by {}", index)
       },
-    }
-  }
-}
-
-impl std::fmt::Display for Value {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    match self {
-      Self::Array(_) => write!(f, "Array"),
-      Self::Object(_) => write!(f, "Object"),
-      Self::String(string, _) => write!(f, "String [{}]", string),
-      Self::UnsignedIntegerNumber(n) => write!(f, "UnsignedIntegerNumber [{}]", n),
-      Self::SignedIntegerNumber(n) => write!(f, "SignedIntegerNumber [{}]", n),
-      Self::FloatNumber(n) => write!(f, "FloatNumber [{}]", n),
-      Self::Boolean(b) => write!(f, "Boolean [{}]", b),
-      Self::Void => write!(f, "Void"),
     }
   }
 }

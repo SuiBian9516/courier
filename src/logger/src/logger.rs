@@ -1,59 +1,101 @@
-use std::sync::{Mutex, OnceLock};
+use std::{
+  sync::{
+    Arc, Mutex, OnceLock,
+    atomic::{AtomicBool, Ordering},
+    mpsc::{self, RecvTimeoutError, SyncSender},
+  },
+  thread::{self, JoinHandle},
+  time::Duration,
+};
 
-use utils::queue::thread_safe_queue::ThreadSafeQueue;
-
-use crate::{error::LoggerError, level::Level, loggable::Loggable, transport::Transport};
+use crate::{level::Level, loggable::Loggable, record::Record, transport::Transport};
 
 pub struct Logger {
-  level: Level,
-  transports: ThreadSafeQueue<Box<dyn Transport>>,
+  sender: SyncSender<Record>,
+  handle: JoinHandle<()>,
+  is_finished: Arc<AtomicBool>,
 }
 
-impl Logger {
-  pub fn new<const N: usize>(level: Level, transports: [Box<dyn Transport>; N]) -> &'static Mutex<Self> {
-    static INSTANCE: OnceLock<Mutex<Logger>> = OnceLock::new();
+static INSTANCE: OnceLock<Mutex<Logger>> = OnceLock::new();
 
-    INSTANCE.get_or_init(move || Mutex::new(Self { level, transports: ThreadSafeQueue::from(transports) }))
+impl Logger {
+  pub fn init(transports: Vec<Box<dyn Transport>>) -> &'static Mutex<Self> {
+    const CAPACITY: usize = 1000;
+    let (sender, receiver) = mpsc::sync_channel::<Record>(CAPACITY);
+    let state = Arc::new(AtomicBool::new(false));
+
+    let running_state = state.clone();
+
+    let handle = thread::Builder::new()
+      .name("logger".into())
+      .spawn(move || {
+        let transports = transports;
+
+        let state = running_state;
+
+        while !state.load(Ordering::SeqCst) {
+          match receiver.recv_timeout(Duration::from_millis(100)) {
+            Ok(msg) => {
+              for transport in transports.iter() {
+                transport.writeln(&msg);
+              }
+            },
+            Err(RecvTimeoutError::Timeout) => continue,
+            Err(RecvTimeoutError::Disconnected) => break,
+          }
+        }
+
+        if let Ok(msg) = receiver.try_recv() {
+          for transport in transports.iter() {
+            transport.writeln(&msg);
+          }
+        }
+      })
+      .expect("Failed to start logger thread");
+
+    let logger = Logger { sender, handle, is_finished: state.clone() };
+
+    INSTANCE.get_or_init(|| Mutex::new(logger))
   }
 
   pub fn get_instance() -> &'static Mutex<Self> {
-    Self::new(Level::INFO, [])
+    INSTANCE.get().expect("Logger not initialized")
   }
 
-  fn log(&self, level: Level, message: impl Loggable) -> Result<(), LoggerError> {
-    if level <= self.level {
-      for transport in &self.transports {
-        let result = transport.write(level, &message.format().as_str());
-        match result {
-          Ok(_) => continue,
-          Err(e) => return Err(e),
-        }
-      }
+  fn log(&self, record: Record) -> bool {
+    match self.sender.try_send(record) {
+      Ok(_) => true,
+      Err(_) => false,
     }
-    Ok(())
   }
 
-  pub fn info(&self, message: impl Loggable) -> Result<(), LoggerError> {
-    self.log(Level::INFO, message)
+  pub fn info(&self, message: impl Loggable, namespace: impl Loggable) -> bool {
+    self.log(Record::new(Level::INFO, message, namespace))
   }
 
-  pub fn warn(&self, message: impl Loggable) -> Result<(), LoggerError> {
-    self.log(Level::WARN, message)
+  pub fn warn(&self, message: impl Loggable, namespace: impl Loggable) -> bool {
+    self.log(Record::new(Level::WARN, message, namespace))
   }
 
-  pub fn error(&self, message: impl Loggable) -> Result<(), LoggerError> {
-    self.log(Level::ERROR, message)
+  pub fn error(&self, message: impl Loggable, namespace: impl Loggable) -> bool {
+    self.log(Record::new(Level::ERROR, message, namespace))
   }
 
-  pub fn fatal(&self, message: impl Loggable) -> Result<(), LoggerError> {
-    self.log(Level::FATAL, message)
+  pub fn debug(&self, message: impl Loggable, namespace: impl Loggable) -> bool {
+    self.log(Record::new(Level::DEBUG, message, namespace))
   }
 
-  pub fn debug(&self, message: impl Loggable) -> Result<(), LoggerError> {
-    self.log(Level::DEBUG, message)
+  pub fn trace(&self, message: impl Loggable, namespace: impl Loggable) -> bool {
+    self.log(Record::new(Level::TRACE, message, namespace))
   }
 
-  pub fn trace(&self, message: impl Loggable) -> Result<(), LoggerError> {
-    self.log(Level::TRACE, message)
+  pub fn fatal(&self, message: impl Loggable, namespace: impl Loggable) -> bool {
+    self.log(Record::new(Level::FATAL, message, namespace))
+  }
+
+  pub fn shutdown(self) {
+    self.is_finished.store(true, Ordering::SeqCst);
+
+    self.handle.join().expect("Failed to join logger thread");
   }
 }

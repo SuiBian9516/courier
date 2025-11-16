@@ -48,11 +48,7 @@ impl Literal {
   }
 
   pub fn get_string_content(&self) -> Option<String> {
-    if let Self::String(content, _) = self {
-      Some(content.to_string())
-    } else {
-      None
-    }
+    if let Self::String(content, _) = self { Some(content.to_string()) } else { None }
   }
 
   pub fn is_unsigned_int(&self) -> bool {
@@ -98,11 +94,7 @@ impl Literal {
   }
 
   pub fn get_reference_content(&self) -> Option<String> {
-    if let Self::Reference(content) = self {
-      Some(content.to_string())
-    } else {
-      None
-    }
+    if let Self::Reference(content) = self { Some(content.to_string()) } else { None }
   }
 
   pub fn is_dereference(&self) -> bool {
@@ -113,11 +105,7 @@ impl Literal {
   }
 
   pub fn get_dereference_content(&self) -> Option<String> {
-    if let Self::Dereference(content) = self {
-      Some(content.to_string())
-    } else {
-      None
-    }
+    if let Self::Dereference(content) = self { Some(content.to_string()) } else { None }
   }
 
   pub fn is_semicolon(&self) -> bool {
